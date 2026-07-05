@@ -10,7 +10,8 @@ config:
 	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && $(ROOT)/lvx-mds/lvx-family/configure --target=lvx \
 	  --with-binutils-prefix=$(ROOT)/lvx-binutils \
 	  --with-gdb-prefix=$(ROOT)/lvx-gdb \
-	  --with-gcc-prefix=$(ROOT)/lvx-gcc
+	  --with-gcc-prefix=$(ROOT)/lvx-gcc \
+	  --with-newlib-prefix=$(ROOT)/lvx-newlib
 
 all check refs:
 	$(MAKE) -C $(BUILD_DIR) $@

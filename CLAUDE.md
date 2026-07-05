@@ -47,9 +47,9 @@ ISA description (.table files)
   → generated source files
 ```
 
-From `lvx-csw/` (this directory), `make config && make all` configures and builds `lvx-mds`; `make config` already wires up `--with-binutils-prefix`/`--with-gdb-prefix`/`--with-gcc-prefix` to point at this directory's `lvx-binutils`/`lvx-gdb`/`lvx-gcc` checkouts, so `make -C lvx-mds/build_lvx/BE/GBU install` delivers generated files straight into them.
+From `lvx-csw/` (this directory), `make config && make all` configures and builds `lvx-mds`; `make config` already wires up `--with-binutils-prefix`/`--with-gdb-prefix`/`--with-gcc-prefix`/`--with-newlib-prefix` to point at this directory's `lvx-binutils`/`lvx-gdb`/`lvx-gcc`/`lvx-newlib` checkouts, so `make -C lvx-mds/build_lvx/BE/GBU install` (or `BE/LIBC`) delivers generated files straight into them.
 
-**Only the `GBU` (binutils) back-end is actually installed anywhere so far**, into both `lvx-binutils` and `lvx-gdb`. **Do not hand-edit these files** — changes will be overwritten by the next `BE/GBU install`:
+**The `GBU` (binutils) and `LIBC` back-ends are actually installed somewhere so far.** `GBU`'s output goes into both `lvx-binutils` and `lvx-gdb`. **Do not hand-edit these files** — changes will be overwritten by the next `BE/GBU install`:
 
 | File | Notes |
 |------|-------|
@@ -63,6 +63,15 @@ From `lvx-csw/` (this directory), `make config && make all` configures and build
 | `include/elf/lvx.h` | **Patched in place** the same way, via `patch_elf_target_h.sh` and the `START_RELOC_NUMBERS`/`END` markers |
 
 Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive the same files).
+
+`BE/LIBC` generates and installs `registers.h` (full SFR set, from `Register.table`/`RegField.table`) and `jmpbuf.h` (the `setjmp`/`longjmp` register-save layout, from `Convention-lvx-regular`) — see `lvx-mds/CLAUDE.md` for the full breakdown. Unlike `GBU`'s single binutils/gdb pairing, `BE/LIBC` has two different consumers with two different files each:
+
+| File | Installed to |
+|------|---------------|
+| `registers.h` | `lvx-newlib/newlib/libc/sys/mbr/include/mbr/lvx/registers.h` |
+| `jmpbuf.h` | `lvx-newlib/newlib/libc/machine/lvx/jmpbuf.h` **and** `lvx-gdb/gdb/lvx-jmpbuf.h` (same file, both places) |
+
+`lvx-newlib`'s `setjmp.S` and `lvx-gdb`'s `lvx-common-tdep.c` (`lvx_get_longjmp_target`) both `#include` the generated `jmpbuf.h`/`lvx-jmpbuf.h` rather than hardcoding the RA offset — this used to be two hand-encoded copies of the same layout, cross-referenced only by a source comment on each side.
 
 `BE/GDB` and `BE/GCC` back-ends exist in `lvx-mds` and `make config` already points `--with-gdb-prefix`/`--with-gcc-prefix` at the right places, but neither has actually been run against its target repo yet. `lvx-gdb/gdb/lvx-mds-tdep.c` is a hand-written "Tier-1" port from KVX instead of `BE/GDB`'s output (see `lvx-gdb/CLAUDE.md`); the `lvx-gcc/gcc/config/lvx/` files below are likewise still hand-adapted from KVX and untouched by any MDS regeneration so far:
 

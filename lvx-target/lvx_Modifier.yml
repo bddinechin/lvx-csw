@@ -1,0 +1,177 @@
+Modifier:
+
+  - ID: ccbcomp
+    what: CCB Double Word Compare
+    members: [ .DLT, .DGE, .DLTU, .DGEU, .DEQ, .DNE, .DANY, .DNONE, .WLT, .WGE, .WLTU, .WGEU, .WEQ, .WNE, .WANY, .WNONE ]
+    cases:
+      - Double Word Less Than
+      - Double Word Greater Than or Equal
+      - Double Word Less Than Unsigned
+      - Double Word Greater Than or Equal Unsigned
+      - Double Word Equal
+      - Double Word Not Equal
+      - Double Any bit set after AND-ing
+      - Double No bits set after AND-ing
+      - Word Less Than
+      - Word Greater Than or Equal
+      - Word Less Than Unsigned
+      - Word Greater Than or Equal Unsigned
+      - Word Equal
+      - Word Not Equal
+      - Word Any bit set after AND-ing
+      - Word No bits set after AND-ing
+    execution: "_ZX_4(%0)"
+
+  - ID: bcucond
+    what: CB Condition
+    members: [ .DLTZ, .DGEZ, .DLEZ, .DGTZ, .DEQZ, .DNEZ, .ODD, .EVEN, .WLTZ, .WGEZ, .WLEZ, .WGTZ, .WEQZ, .WNEZ ]
+    cases:
+      - Double Less Than Zero
+      - Double Greater Than or Equal to Zero
+      - Double Less Than or Equal to Zero
+      - Double Greater Than Zero
+      - Double Equal to Zero
+      - Double Not Equal to Zero
+      - Odd (LSB Set)
+      - Even (LSB Clear)
+      - Word Less Than Zero
+      - Word Greater Than or Equal to Zero
+      - Word Less Than or Equal to Zero
+      - Word Greater Than Zero
+      - Word Equal to Zero
+      - Word Not Equal to Zero
+    execution: "_ZX_4(%0)"
+
+  - ID: intcomp
+    what: Integer Comparison
+    members: [ .LT, .GE, .LTU, .GEU, .EQ, .NE, .ANY, .NONE, .LE, .GT, .LEU, .GTU ]
+    cases:
+      - Less Than
+      - Greater Than or Equal
+      - Less Than Unsigned
+      - Greater Than or Equal Unsigned
+      - Equal
+      - Not Equal
+      - Any bits set in after AND-ing
+      - No bits set after AND-ing
+      - Less Than or Equal
+      - Greater Than
+      - Less Than or Equal Unsigned
+      - Greater Than Unsigned
+    execution: "_ZX_4(%0)"
+
+  - ID: floatcomp
+    what: Floating-Point Comparison
+    members: [ .ONE, .UEQ, .OEQ, .UNE, .OLT, .UGE, .OGE, .ULT ]
+    cases:
+      - Ordered and Not Equal
+      - Unordered or Equal
+      - Ordered and Equal
+      - Unordered or Not Equal
+      - Ordered and Less Than
+      - Unordered or Greater Than or Equal
+      - Ordered and Greater Than or Equal
+      - Unordered or Less Than
+    execution: "_ZX_3(%0)"
+
+  - ID: floatmode
+    what: Floating-Point Rounding Mode
+    members: [ .RN, .RZ, .RD, .RU, .RM, .R5, .RO, . ]
+    cases:
+      - Round to Nearest, ties to Even
+      - Round toward Zero
+      - Round Downward
+      - Round Upward
+      - Round to Nearest, ties to Max Magnitude
+      - Reserved 5
+      - Round to Odd
+      - Use CS rounding
+    execution: "_ZX_3(%0)"
+
+  - ID: signextw
+    what: Sign Extend Word
+    members: [ ., .SX ]
+    cases:
+      - Zero Extend
+      - Sign Extend
+    execution: "_ZX_1(%0)"
+
+  - ID: highmult
+    what: High Multiply
+    members: [ ., .H, .HU, .HSU ]
+    cases:
+      - Low
+      - High
+      - High Unsigned
+      - High Signed Unsigned
+    execution: "_ZX_2(%0)"
+
+  - ID: widemult
+    what: Wide Multiply
+    members: [ ., .U, .SU ]
+    cases:
+      - Signed
+      - Unsigned
+      - Signed by Unsigned
+    execution: "_ZX_2(%0)"
+
+  - ID: mostsig
+    what: Least or Most Significant Bits
+    members: [ ., .M ]
+    cases:
+      - Least Significant Bits
+      - Most Significant Bits
+    execution: "_ZX_1(%0)"
+
+  - ID: fnegate
+    what: Floating-Point Negate
+    members: [ ., .N ]
+    cases:
+      - Default Result
+      - Negate Result
+    execution: "_ZX_1(%0)"
+
+  - ID: variant
+    what: Load Variants
+    members: [ ., .S, .U, .US ]
+    cases:
+      - Cached
+      - Speculative
+      - Uncached
+      - Uncached Speculative
+    execution: "_ZX_2(%0)"
+
+  - ID: cachelev
+    what: Cache Level for Set/Way maintenance
+    members: [ .L1, .L2 ]
+    cases:
+      - L1 Cache
+      - L2 Cache
+    execution: "_ZX_2(%0)"
+
+  - ID: accesses
+    what: Fence Access
+    members: [ ., .W, .R, .WA ]
+    cases:
+      - All Accesses
+      - Write Accesses
+      - Read Accesses
+      - Write Accesses (asynchronous)
+    execution: "_ZX_2(%0)"
+
+  - ID: conjugate
+    what: Complex Conjugate
+    members: [ ., .C ]
+    cases:
+      - Default
+      - Conjugate
+    execution: "_ZX_1(%0)"
+
+  - ID: imultiply
+    what: Multiply by Imaginary Unit
+    members: [ ., .MI ]
+    cases:
+      - Default
+      - Multiply by I
+    execution: "_ZX_1(%0)"
+

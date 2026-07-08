@@ -1,0 +1,54 @@
+Synthetic:
+  - ID: COPYQ
+    what: Copy Double Word
+    formats: [ ALU_CATDQ ]
+    instruction: CATDQ
+  - ID: COPYD
+    what: Copy Double Word
+    formats: [ ALU_DWRI ]
+    instruction: IORD
+    specialize: { "%3": 0 }
+    syntax: "%0 %1 = %2"
+  - ID: ZXBD
+    what: Zero Extend Byte to Double Word
+    formats: [ ALU_BFWR ]
+    instruction: EXTFZ
+    specialize: { "%3": "0b000111", "%4": "0b000000" }
+    syntax: "%0 %1 = %2"
+  - ID: SXBD
+    what: Sign Extend Byte to Double Word
+    formats: [ ALU_BFWR ]
+    instruction: EXTFS
+    specialize: { "%3": "0b000111", "%4": "0b000000" }
+    syntax: "%0 %1 = %2"
+  - ID: ZXHD
+    what: Zero Extend Half Word to Double Word
+    formats: [ ALU_BFWR ]
+    instruction: EXTFZ
+    specialize: { "%3": "0b001111", "%4": "0b000000" }
+    syntax: "%0 %1 = %2"
+  - ID: SXHD
+    what: Sign Extend Half Word to Double Word
+    formats: [ ALU_BFWR ]
+    instruction: EXTFS
+    specialize: { "%3": "0b001111", "%4": "0b000000" }
+    syntax: "%0 %1 = %2"
+  - ID: ZXWD
+    what: Zero Extend Word to Double Word
+    formats: [ ALU_BFWR ]
+    instruction: EXTFZ
+    specialize: { "%3": "0b011111", "%4": "0b000000" }
+    syntax: "%0 %1 = %2"
+  - ID: SXWD
+    what: Sign Extend Word to Double Word
+    formats: [ ALU_BFWR ]
+    instruction: EXTFS
+    specialize: { "%3": "0b011111", "%4": "0b000000" }
+    syntax: "%0 %1 = %2"
+  - ID: COPYW
+    what: Copy Word
+    formats: [ ALU_WSWRI ]
+    instruction: SLLW
+    specialize: { "%3": "0" }
+    syntax: "%0%4 %1 = %2"
+

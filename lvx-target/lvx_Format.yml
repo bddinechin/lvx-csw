@@ -1,0 +1,644 @@
+  - ID: BCU_CCB
+    what: BCU Compare Conditional Branches
+    encoding: simple
+    operands: [ ccbcomp, { singleReg: registerZ }, { singleReg: registerY }, pcrel11s2 ]
+    syntax: "%0%1 %2, %3 ? %4"
+    scheduling: BCU_BRRP2
+  - ID: BCU_CB
+    what: BCU Conditional Branches
+    encoding: simple
+    operands: [ bcucond, { singleReg: registerZ }, pcrel17s2 ]
+    syntax: "%0%1 %2? %3"
+    scheduling: BCU_BRRP
+  - ID: BCU_GUARD
+    what: BCU Guarded Execution
+    encoding: simple
+    operands: [ { bcucond: execpred }, { singleReg: registerZ }, { unsigned6: activate } ]
+    syntax: "%0%1 %2? %3"
+    scheduling: BCU_BRRP
+  - ID: BCU_BLEND
+    what: BCU Blended Execution
+    encoding: simple
+    operands: [ lanetodo, lanesize, { singleReg: registerZ }, { unsigned6: activate } ]
+    syntax: "%0%1%2 %3? %4"
+    scheduling: BCU_BRRP
+  - ID: BCU_IPC
+    what: BCU Instruction Pipeline Control
+    encoding: simple
+    syntax: "%0"
+    scheduling: ALL
+  - ID: BCU_PGI
+    what: BCU Processing Group Instructions
+    encoding: simple
+    operands: [ { singleReg: registerZ } ]
+    syntax: "%0 %1"
+    scheduling: BCU2
+  - ID: BCU_WFX
+    what: BCU Half-Word Effects
+    encoding: simple
+    operands: [ { onlyfxReg: systemT2 }, { singleReg: registerZ } ]
+    syntax: "%0 %1, %2"
+    scheduling: BCU2
+  - ID: BCU_WFXA
+    what: BCU Half-Word Effects Alone
+    encoding: simple
+    operands: [ { aloneReg: systemAlone }, { singleReg: registerZ } ]
+    syntax: "%0 %1, %2"
+    scheduling: ALL
+  - ID: BCU_SET
+    what: BCU Set System Registers
+    encoding: simple
+    operands: [ { onlysetReg: systemT3 }, { singleReg: registerZ } ]
+    syntax: "%0 %1 = %2"
+    scheduling: BCU2
+  - ID: BCU_SETA
+    what: BCU Set System Register Alone
+    encoding: simple
+    operands: [ { aloneReg: systemAlone }, { singleReg: registerZ } ]
+    syntax: "%0 %1 = %2"
+    scheduling: ALL
+  - ID: BCU_SETRA
+    what: BCU Set System Register RA
+    encoding: simple
+    operands: [ { onlyraReg: systemRA }, { singleReg: registerZ } ]
+    syntax: "%0 %1 = %2"
+    scheduling: BCU2
+  - ID: BCU_GSR
+    what: BCU Get System Registers
+    encoding: simple
+    operands: [ { singleReg: registerZ }, { onlygetReg: systemS2 } ]
+    syntax: "%0 %1 = %2"
+    scheduling: BCU2_TINY_LSU
+  - ID: BCU_RSWAP
+    what: BCU General and System Register Swap
+    encoding: simple
+    operands: [ { singleReg: registerZ }, { onlyswapReg: systemS4 } ]
+    syntax: "%0 %1 = %2"
+    scheduling: BCU2_TINY_LSU
+  - ID: BCU_RSWAPA
+    what: BCU General and System Register Swap Alone
+    encoding: simple
+    operands: [ { singleReg: registerZ }, { aloneReg: systemAlone } ]
+    syntax: "%0 %1 = %2"
+    scheduling: ALL
+  - ID: BCU_IGSR
+    what: BCU Indirect Get System Registers
+    encoding: simple
+    operands: [ { singleReg: registerZ } ]
+    syntax: "%0 %1"
+    scheduling: BCU2_TINY_LSU
+  - ID: BCU_RTS
+    what: BCU Return from Call and System Calls
+    encoding: simple
+    syntax: "%0"
+    scheduling: BCU_XFER
+  - ID: BCU_IBC
+    what: BCU Indirect Branch and Call from Register
+    encoding: simple
+    operands: [ { singleReg: registerZ } ]
+    syntax: "%0 %1"
+    scheduling: BCU_XFER_BRRP
+  - ID: BCU_SCI
+    what: BCU Supervisor Call Immediate
+    encoding: simple
+    operands: [ sysnumber ]
+    syntax: "%0 %1"
+    scheduling: ALL
+  - ID: BCU_SCR
+    what: BCU Supervisor Call Register
+    encoding: simple
+    operands: [ { singleReg: registerZ } ]
+    syntax: "%0 %1"
+    scheduling: ALL
+  - ID: BCU_BREAK
+    what: BCU Software Break
+    encoding: simple
+    operands: [ brknumber ]
+    syntax: "%0 %1"
+    scheduling: ALL
+  - ID: BCU_UB
+    what: BCU Unconditional Branches
+    encoding: simple
+    operands: [ pcrel27s2 ]
+    syntax: "%0 %1"
+    scheduling: BCU_XFER
+  - ID: LSU_LSBO
+    what: LSU Load Scalar Base Offset
+    encoding: simple
+    operands: [ { singleReg: registerW }, signed10, { singleReg: registerZ }, variant ]
+    syntax: "%0%4 %1 = %2[%3]"
+    scheduling: LSU_AUXW
+  - ID: LSU_LQBO
+    what: LSU Load Quadruple Base Offset
+    encoding: simple
+    operands: [ { pairedReg: registerM }, signed10, { singleReg: registerZ }, variant ]
+    syntax: "%0%4 %1 = %2[%3]"
+    scheduling: LSU_AUXW
+  - ID: LSU_LOBO
+    what: LSU Load Octuple Base Offset
+    encoding: simple
+    operands: [ { quadReg: registerN }, signed10, { singleReg: registerZ }, variant ]
+    syntax: "%0%4 %1 = %2[%3]"
+    scheduling: LSU_AUXW
+  - ID: LSU_FXBO
+    what: LSU Memory Effects Base Offset
+    encoding: simple
+    operands: [ { singleReg: registerZ }, signed10 ]
+    syntax: "%0 %2[%1]"
+    scheduling: LSU
+  - ID: LSU_MCC
+    what: LSU Memory and Cache Control
+    encoding: simple
+    syntax: "%0"
+    scheduling: LSU2_MEMW
+  - ID: LSU_FENCE
+    what: LSU Memory Fence
+    encoding: simple
+    operands: [ accesses ]
+    syntax: "%0%1"
+    scheduling: LSU2_MEMW
+  - ID: LSU_SSBO
+    what: LSU Store Scalar Base Offset
+    encoding: simple
+    operands: [ signed10, { singleReg: registerZ }, { singleReg: registerT } ]
+    syntax: "%0 %1[%2] = %3"
+    scheduling: LSU_MEMW_AUXR
+  - ID: LSU_SQBO
+    what: LSU Store Quadruple Base Offset
+    encoding: simple
+    operands: [ signed10, { singleReg: registerZ }, { pairedReg: registerU } ]
+    syntax: "%0 %1[%2] = %3"
+    scheduling: LSU_MEMW_AUXR
+  - ID: LSU_SOBO
+    what: LSU Store Octuple Base Offset
+    encoding: simple
+    operands: [ signed10, { singleReg: registerZ }, { quadReg: registerV } ]
+    syntax: "%0 %1[%2] = %3"
+    scheduling: LSU_MEMW_AUXR
+  - ID: LSU_COPYO
+    what: LSU Copy Octuple Word
+    encoding: simple
+    operands: [ { quadReg: registerN }, { quadReg: registerR } ]
+    syntax: "%0 %1 = %2"
+    scheduling: LSU_AUXR_AUXW
+  - ID: LSU_LSBI
+    what: LSU Load Scalar Base + Index
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerY }, { singleReg: registerZ }, variant ]
+    syntax: "%0%4 %1 = %2[%3]"
+    scheduling: LSU_AUXW
+  - ID: LSU_LQBI
+    what: LSU Load Quadruple Base + Index
+    encoding: simple
+    operands: [ { pairedReg: registerM }, { singleReg: registerY }, { singleReg: registerZ }, variant ]
+    syntax: "%0%4 %1 = %2[%3]"
+    scheduling: LSU_AUXW
+  - ID: LSU_LOBI
+    what: LSU Load Octuple Base + Index
+    encoding: simple
+    operands: [ { quadReg: registerN }, { singleReg: registerY }, { singleReg: registerZ }, variant ]
+    syntax: "%0%4 %1 = %2[%3]"
+    scheduling: LSU_AUXW
+  - ID: LSU_FXBI
+    what: LSU Memory Effects Base + Index
+    encoding: simple
+    operands: [ { singleReg: registerY }, { singleReg: registerZ } ]
+    syntax: "%0 %1[%2]"
+    scheduling: LSU
+  - ID: LSU_FXSW
+    what: LSU Memory Effects by Set / Way
+    encoding: simple
+    operands: [ { singleReg: registerY }, { singleReg: registerZ }, cachelev ]
+    syntax: "%0%3 %1, %2"
+    scheduling: LSU2_MEMW
+  - ID: LSU_SSBI
+    what: LSU Store Scalar Base + Index
+    encoding: simple
+    operands: [ { singleReg: registerY }, { singleReg: registerZ }, { singleReg: registerT } ]
+    syntax: "%0 %1[%2] = %3"
+    scheduling: LSU_MEMW_AUXR
+  - ID: LSU_SQBI
+    what: LSU Store Quadruple Base + Index
+    encoding: simple
+    operands: [ { singleReg: registerY }, { singleReg: registerZ }, { pairedReg: registerU } ]
+    syntax: "%0 %1[%2] = %3"
+    scheduling: LSU_MEMW_AUXR
+  - ID: LSU_SOBI
+    what: LSU Store Octuple Base + Index
+    encoding: simple
+    operands: [ { singleReg: registerY }, { singleReg: registerZ }, { quadReg: registerV } ]
+    syntax: "%0 %1[%2] = %3"
+    scheduling: LSU_MEMW_AUXR
+  - ID: ALU_DWI
+    what: ALU Double Word from Immediate
+    encoding: simple
+    operands: [ { singleReg: registerW }, signed16 ]
+    syntax: "%0 %1 = %2"
+    scheduling: ALU_TINY
+  - ID: ALU_DWRI
+    what: ALU Double Word Write Read Immediate
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, signed10 ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_BFWR
+    what: ALU Bit Field Write Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { unsigned6: [ stopbit2, stopbit4 ] }, { unsigned6: startbit } ]
+    syntax: "%0 %1 = %2, %3, %4"
+    scheduling: ALU_TINY
+  - ID: ALU_DBMWRI
+    what: ALU Double Word Bit Matrix Multiply Immediate
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, signed10 ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_DWRR0
+    what: ALU Double Write Read Read 0
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_DCWRR
+    what: ALU Double Comparison Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, intcomp ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_DBMWRRR
+    what: ALU Bit Matrix Multiply EOR Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_DBMWRR
+    what: ALU Bit Matrix Multiply Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_DWRR2
+    what: ALU Double Word Write Read Read 2
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_DWRRS
+    what: ALU Double Word Write Read Read Special
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_DCMWRR
+    what: ALU Double Word Conditional Move Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, { bcucond: cmovecond } ]
+    syntax: "%0%4 %2? %1 = %3"
+    scheduling: ALU_LITE
+  - ID: ALU_DSWRR
+    what: ALU Double Shift Rotate Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_DSWRI
+    what: ALU Double Shift Rotate Write Read Immediate
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, unsigned6 ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_DWRR1
+    what: ALU Double Write Read Read 1
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_DDMWRR
+    what: ALU Double Word Division Modulus Write Read Read
+    encoding: simple
+    operands: [ { pairedReg: registerM }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_FULL
+  - ID: ALU_DBWR
+    what: ALU Double Word Bit Write Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ } ]
+    syntax: "%0 %1 = %2"
+    scheduling: ALU_TINY
+  - ID: ALU_DMWRR
+    what: ALU Double Word Multiply Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, highmult ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_DMWRRR
+    what: ALU Double Word Multiply Write Read Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, highmult ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_DMEWRR
+    what: ALU Double Word Multiply Extend Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, widemult ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_DMEWRRR
+    what: ALU Double Word Multiply Extend Write Read Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, widemult ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_QWRR0
+    what: ALU Word Quadruple Write Read Read 0
+    encoding: simple
+    operands: [ { pairedReg: registerM }, { pairedReg: registerP }, { pairedReg: registerO } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_QCWRR
+    what: ALU Double Word Comparison Write Read Read
+    encoding: simple
+    operands: [ { pairedReg: registerM }, { pairedReg: registerP }, { pairedReg: registerO }, intcomp ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_CATDQ
+    what: ALU Catenate Double to Quadruple Word
+    encoding: simple
+    operands: [ { pairedReg: registerM }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_QCMWRR
+    what: ALU Quadruple Word Conditional Move Write Read Read
+    encoding: simple
+    operands: [ { pairedReg: registerM }, { singleReg: registerZ }, { pairedReg: registerO }, { bcucond: cmovecond } ]
+    syntax: "%0%4 %2? %1 = %3"
+    scheduling: ALU_LITE
+  - ID: ALU_QBWR
+    what: ALU Quadruple Word Bit Write Read
+    encoding: simple
+    operands: [ { pairedReg: registerM }, { pairedReg: registerP } ]
+    syntax: "%0 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_WWRR0
+    what: ALU Word Write Read Read 0
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, signextw ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_WCWRR
+    what: ALU Word Comparison Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, intcomp, signextw ]
+    syntax: "%0%4%5 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_WAVG
+    what: ALU Word Average
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, signextw ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_WWRR2
+    what: ALU Word Write Read Read 2
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_WCWRRR
+    what: ALU Word CRC Write Read Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_WWRRS
+    what: ALU Word Write Read Read Special
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, signextw ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_WSWRR
+    what: ALU Word Shift Rotate Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, signextw ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_WSWRI
+    what: ALU Word Shift Rotate Write Read Immediate
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, unsigned6, signextw ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_WWRR1
+    what: ALU Word Write Read Read 1
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, signextw ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_TINY
+  - ID: ALU_WDMWRR
+    what: ALU Word Division Modulus Write Read Read
+    encoding: simple
+    operands: [ { pairedReg: registerM }, { singleReg: registerZ }, { singleReg: registerY }, signextw ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_FULL
+  - ID: ALU_BWRW
+    what: ALU Word Bit Write Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ } ]
+    syntax: "%0 %1 = %2"
+    scheduling: ALU_TINY
+  - ID: ALU_WMWRR
+    what: ALU Word Multiply Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, highmult, signextw ]
+    syntax: "%0%4%5 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_WMWRRR
+    what: ALU Word Multiply Write Read Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, highmult, signextw ]
+    syntax: "%0%4%5 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FDADD
+    what: ALU Floating-Point Double Word Add Subtract
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatmode ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FDCWRR
+    what: ALU Floating-Point Double Word Comparison Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatcomp ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FDMMWR
+    what: ALU Floating-Point Double Word Min/Max Write Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FDMO1
+    what: ALU Floating-Point Double Word Operations 1
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ } ]
+    syntax: "%0 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FDWIDEN
+    what: ALU Floating-Point Double Word Widen from Word
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, mostsig ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FDFLOAT
+    what: ALU Floating-Point Double Word Convert to Floating-Point
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, floatmode ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FDFIXED
+    what: ALU Floating-Point Double Word Convert to Fixed-Point
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, floatmode ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FDMO0
+    what: ALU Floating-Point Double Word Monadic 0
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, floatmode ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FDFMA
+    what: ALU Floating-Point Double Word Fused Multiply Accumulate
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatmode, fnegate ]
+    syntax: "%0%5%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FDMUL
+    what: ALU Floating-Point Double Word Multiply
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatmode, fnegate ]
+    syntax: "%0%5%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FWCOP
+    what: ALU Floating-Point Word Complex Operations
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatmode, imultiply, conjugate ]
+    syntax: "%0%6%5%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FWADD
+    what: ALU Floating-Point Word Add Subtract
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatmode ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FWCWRR
+    what: ALU Floating-Point Word Comparison Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatcomp ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FWMMWR
+    what: ALU Floating Point Word Min/Max Write Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FWMO1
+    what: ALU Floating-Point Word Operations 1
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ } ]
+    syntax: "%0 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FWWIDEN
+    what: ALU Floating-Point Word Widen from Half Word
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, mostsig ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FWFLOAT
+    what: ALU Floating-Point Word Convert to Floating-Point
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, floatmode ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FWFIXED
+    what: ALU Floating-Point Word Convert to Fixed-Point
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, floatmode ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FWMO0
+    what: ALU Floating-Point Word Monadic 0
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, floatmode ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FWWR
+    what: ALU Floating-Point Word Write Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, floatmode ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FWFMA
+    what: ALU Floating-Point Word Fused Multiply Accumulate
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatmode, fnegate ]
+    syntax: "%0%5%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FWMUL
+    what: ALU Floating-Point Word Multiply
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatmode, fnegate ]
+    syntax: "%0%5%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FHADD
+    what: ALU Floating-Point Half Word Add Subtract
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatmode ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FHCWRR
+    what: ALU Floating-Point Half Word Comparison Write Read Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatcomp ]
+    syntax: "%0%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FHMMWR
+    what: ALU Floating Point Half Word Min/Max Write Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY } ]
+    syntax: "%0 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FHMO1
+    what: ALU Floating-Point Half Word Monadic 1
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ } ]
+    syntax: "%0 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FHMO0
+    what: ALU Floating-Point Half Word Monadic 0
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, floatmode ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FHWR
+    what: ALU Floating-Point Half Word Write Read
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, floatmode ]
+    syntax: "%0%3 %1 = %2"
+    scheduling: ALU_LITE
+  - ID: ALU_FHFMA
+    what: ALU Floating-Point Half Word Fused Multiply Accumulate
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatmode, fnegate ]
+    syntax: "%0%5%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_FHMUL
+    what: ALU Floating-Point Half Word Multiply
+    encoding: simple
+    operands: [ { singleReg: registerW }, { singleReg: registerZ }, { singleReg: registerY }, floatmode, fnegate ]
+    syntax: "%0%5%4 %1 = %2, %3"
+    scheduling: ALU_LITE
+  - ID: ALU_NOP
+    what: ALU No Operation
+    encoding: simple
+    syntax: "%0"
+    scheduling: ALU_TINY

@@ -1,0 +1,504 @@
+\section{Application Binary Interface}
+
+\subsection{Introduction}
+
+The LVX core Application Binary Interface (ABI) is a set of conventions
+designed for inter-operability between the different code-generation tools and
+libraries.
+
+This ABI is little-endian only for bytes and bits.
+Dynamic linking assumes that position-independent code and data are accessed
+through pointers materialized in the called function.
+
+The 32-bit addressing code generation uses a convention called ILP32, in which
+integers, long integers, and pointers are 32-bit quantities. The 64-bit
+addressing code generation uses the LP64 convention, in which integers are
+32-bit quantities, while long integers and pointers are 64-bit quantities. In
+both cases, \texttt{char} is a signed type and \texttt{long long} is a 64-bit
+integer.
+
+\subsection{Memory Addressing Model}
+
+A program that executes on the LVX core views the addressable memory
+as a collection of \emph{segments}. A segment is an area of memory that has
+specific uses within an application and has no fixed address relationship to any
+other segment. Thus, relative distances between any two items belonging to the
+same segment are constant once the program has been linked, but the distance
+between two items in different segments is not fixed. The program view of the
+addressable memory as a collection of segments is independent from the
+definition of address ranges with associated attributes in the MMU TLB entries.
+It is expected, however, that the MMU be configured to enforce the correct
+attributes of the segments once their addresses are resolved by the linker or
+the loader.  The following memory segments are defined: \begin{description}
+
+\item[Text] Contains the executable code, and exception tables.
+
+\item[Data] Contains static storage variables with initialization values.
+
+\item[Heap] Contains storage managed by dynamic memory allocation.
+
+\item[Stack] Contains the stack frames of the executing functions.
+
+\item[Device] Memory cells whose access triggers side-effects on hardware.
+
+\end{description}
+
+The memory segments except the device segment are populated by the linker or the
+loader by concatenating the contributions from the program units that compose
+the executable program. These contributions are contained into \emph{section}s,
+whose mapping of to segments is as follows:
+
+\begin{center}
+\begin{tabular}{|l|l|l|} \hline
+Section & Segment & Contents \\ \hline
+\texttt{.text} & Text & Executable code \\
+\texttt{.data} & Data & Initialized static data \\
+\texttt{.bss} & Data & Cleared on start static data \\
+\texttt{.rodata} & Data & Read-only data \\
+\texttt{.tdata} & Data & Initialized thread-local data \\
+\texttt{.tbss} & Data & Cleared on start thread-local data \\
+\hline \end{tabular}
+\end{center}
+
+
+\subsection{Data Layout Rules}
+
+\subsubsection{Native C Types}
+
+Native types of the C language are \emph{naturally aligned}, that is, their
+address must be a multiple of their size as computed by the \texttt{sizeof}
+operator in C.
+
+While the natural alignment of native types is not required by the LVX
+architecture, it promotes more efficient code at little cost in storage.
+
+\subsubsection{C Aggregate Types}
+
+C aggregate types comprise arrays, complex types, GNU C vector types,
+\verb|struct| types, and \verb|union| types: \begin{itemize}
+
+\item An array is aligned on the same boundary as its element type.
+
+\item Complex types and GNU C vector types inherit the alignment or their
+    elements.  However, for performance reasons, they may be aligned on a
+    multiple of their size in data sections and stack frames.
+
+\item C \verb|struct| and \verb|union| types inherit the alignment of their most
+    strictly aligned member.
+
+\item The size of any aggregate type is always a multiple of its alignment.
+
+\item Each aggregate type member is assigned to the lowest available offset with
+    the appropriate alignment. This may require internal padding, depending on
+    the previous member.
+
+\item An aggregate size is increased, if necessary, to make it a multiple of the
+    alignment. This may require tail padding, depending on the last member type.
+
+\item There are no minimal size requirements for a \verb|struct| or \verb|union| type.
+
+\end{itemize} The content of any padding is undefined.
+
+\subsubsection{Bit-Field Layout}
+
+C \verb|struct| and \verb|union| types may have bit-fields that define integral
+objects with a specified number of bits.  The LVX run-time architecture
+does not specify the signedness of bit-field types. This is specified by the
+ISO~C99 language standard for all bit-field types except for plain \verb|int|.
+The signedness of plain int bit-fields should be specified by the compiler
+implementation.  Bit-fields obey the same size and alignment rules as other
+\verb|struct| and \verb|union| members, with the following additions:
+\begin{itemize}
+
+\item Bit-fields are allocated least significant bit to most significant bit
+    (from right to left).
+
+\item A named bit-field must entirely reside in a storage unit appropriate for its
+    declared type. For example, a bit-field of type short must never cross a
+    half-word boundary. (This bit-field alignment rule is inherited from the
+    historic PCC compiler.)
+
+\item The type of unnamed bit-fields does not affect the alignment of the enclosing
+    \verb|struct| or \verb|union| type.  Zero-length unnamed bit-fields force the
+    alignment of subsequent members to the boundary corresponding to the size of
+    the bit-field type.
+
+\end{itemize}
+
+\subsection{Stack Frame Organization}
+
+\subsubsection{Stack Frame Addressing}
+
+A function stack frame is an area of memory in the stack segment which is
+dedicated to the activation of a called function.  The stack grows downwards,
+and is delimited by the value of the stack pointer (SP) register that points to
+its lowest address. An application may not write to memory below the stack
+pointer.  Any memory below the stack pointer may be destroyed at any time, for
+instance by interrupt handlers.  
+
+The stack pointer must always be aligned on a 32-byte boundary.  This implies
+that all stack frames must be a multiple of 32 bytes in size. When composing a
+function stack frame, small object sizes and alignment are rounded up to 8
+bytes. Objects that have stricter alignment than 8 bytes are assigned a slot
+that ensures this stricter alignment, typically by allocating more stack slots
+at compile time then rounding the address at execution time.
+
+The frame grows downwards, meaning that local variable slots are addressed by a
+negative offset from a virtual frame pointer. The first local variable slot is
+thus at offset -8 from the virtual frame pointer.  The virtual frame pointer is
+an abstraction and is different from the address maintained into the frame
+pointer (FP) register, also known as hard frame pointer.  The FP register points
+to the first address above the Dynamic Area region, described next.
+
+\subsubsection{Stack Frame Regions}
+\label{sss:stack-frame-region}
+
+\begin{figure}
+{\small
+\begin{verbatim}
+                            ~                ~
+                            |  ............  |
+                            |                |    ^
+                            |                |    |
+                            | Incoming       |    | Caller frame
+        [256-bits aligned]  | Arguments      | <--/ <- incoming $sp
+                            +----------------+
+                            | Anonymous      |
+                            | Arguments      |
+                            |                |
+                            +----------------+
+                            |                |
+                            | padding1       |
+                            |                |
+                            +----------------+
+        [256-bits aligned]  | [Static chain] | <--- Virtual FP
+                            +----------------+
+                            | Local          |
+                            | Variables      |
+                            |                |
+                            +----------------+
+                            |                |
+                            | padding2       |
+                            |                |
+                            +----------------+
+                            |                |
+                            | Register       |
+                            | Save           |
+                            |                |
+                            | $ra            | (if frame_pointer_needed)
+        [64-bits aligned]   | caller FP      | (<- $fp if frame_pointer_needed)
+                            +----------------+
+                            |                |
+                            | [Dynamic Area] |
+                            |                |
+                            +----------------+
+                            |                |
+                            | padding3       |
+                            |                |
+                            +----------------+
+                            |                |
+                            | Outgoing       |
+                            | Arguments      |
+       [256-bits aligned]   |                | <- $sp
+                            +----------------+
+\end{verbatim}
+}
+\caption{Stack frame regions.} \label{fig:stack-frame}
+\end{figure}
+
+A function stack frame comprises up to six regions, listed from the
+highest address to the lowest address in the stack frame
+(Figure~\ref{fig:stack-frame}): \begin{description}
+
+\item[Anonymous Arguments] This region contains space for storing the
+    incoming anonymous arguments passed in registers in case the function is
+    variadic. Anonymous arguments, also known as unnamed arguments, are those
+    passed at position starting at ellipsis '\texttt{...}' in the prototype
+    of a variadic function.
+
+\item[Local Variables] A function may store local variables and
+    compiler temporaries in this region. In case a static chain pointer is
+    required, it uses the first local variable slot. The static chain pointer is
+    used in languages that support nested function definitions, in order to
+    access the local variables of the enclosing functions. Nested functions are
+    supported as an extension in GNU C.
+
+\item[Registers Save] A function may store callee-saved (preserved)
+    registers in this region before reusing them. A function may also store
+    caller-saved (scratch) registers in this region before calling a function.
+
+\item[Frame Marker] This region contains information required for
+    unwinding the stack at run-time, and is pointed to by the FP register. It
+    contains a pointer to the previous frame marker (the caller FP), and the
+    return address of the function. The pointer is NULL if there is no previous
+    frame marker.
+
+\item[Dynamic Area] This region is variable-sized and created in case the
+    function calls \verb|alloca()| or declares ISO~C99 variable length arrays.
+    When the Dynamic Area exists, a Frame Marker region is required. Otherwise,
+    the Frame Marker region is optional.
+
+\item[Outgoing Arguments] Successive arguments are passed in argument slots,
+    with the first twelve ones located in registers R0--R11, and the other on
+    the stack in the Outgoing Arguments region. The Outgoing Argument region on
+    the stack is sized as the maximum required by all functions called from the
+    current one.  Stack space is not allocated for the arguments that are passed
+    in registers, whether named or anonymous.
+
+\end{description}
+
+\subsection{Nested Functions Implementation}
+
+As mentionned in \ref{sss:stack-frame-region}, a stack frame may need a static
+chain slot which uses the first local variable slot. This slots stores a
+pointer to the location of the local variables of its caller (whose activation
+record is stored higher in the stack).
+
+Let's recall that the situation is pretty different for the caller (the
+function which has a nested function) and the callee (the nested function
+itself), even though a function can be both at the same time if there is a
+nested function in a nested function.
+
+The caller has to give away a pointer pointing on its local variables so that
+the callee can store it in the its static chain slot for later use. Currently
+this is done by using GPR \texttt{\$r31} (a callee saved register used as a
+scratch register). When calling a nested function, the calling function:
+\begin{enumerate}
+    \item Store its static chain in \texttt{\$r31},
+    \item Call the nested function
+    \item The nested function stores the address of the static chain in a
+          special slot in its frame. This is done in the prologue of the function, once
+          \texttt{\$r31} has been saved it can be used again, saving \texttt{\$r31} is
+          espacially useful when the depth of the nest of nested function is greater than
+          one (ie, there is at least one nested function in a nested function).
+\end{enumerate}
+
+In case there is a need to pass the address of a nested function to another
+function (whose stack frame will be below the function which performs the call
+(the general case is not covered)), the calling function sets up a trampoline
+of size (12 * 2 + 4 = 28) on the stack composed of:
+
+\begin{verbatim}
+    0:  make $r31 = ptr to static chain of caller
+    c:  make $r30 = ptr to the nested function
+   10:  igoto $r30 (Note that icall would destroy $ra.)
+\end{verbatim}
+
+Once this is done, the calling function gives the address of the trampoline
+instead of the real address of the nested function. This way, when it is called
+it first setup the static chain.
+
+\subsubsection{Regarding cache alignement and cache invalidation}
+
+The macro \texttt{TRAMPOLINE\_ALIGNEMENT = 32}, should guarantee by
+construction that the trampoline is correctly aligned on the stack and the
+three instructions (each in a separate bundle) should not overlap two cache
+lines such that the a call to \texttt{i1invals (static\_chain\_address)}
+clears the cache line where those $3$ instructions are.
+
+\subsection{Function Arguments and Result}
+
+Arguments are passed in a combination of general registers and memory, as
+described below. Arguments are first allocated on a conceptual argument list,
+that begins at relative address 0, and are allocated towards increasing
+addresses. Each storage unit in the argument list, called argument slot, has a
+8-byte size and alignment. Argument slots are referred to as slot~0, slot~1,
+slot~2, etc.  Arguments are aligned to 8-byte boundary and padded within the
+argument list according to the following rules: \begin{itemize}
+
+\item  Integral scalar arguments smaller than 64 bits are padded on the left to
+    a total width of 64 bits (that is, the value is placed in the
+    least-significant bits of the argument slot), and placed in the next
+    available argument slot.
+
+\item Half-precision floating-point arguments are not promoted to
+    single-precision floating-point. They are passed directly with 48-bit of
+    padding.
+
+\item Single-precision complex arguments are passed as a single argument.  The
+    real part is passed in the 32 least significant bits and the imaginary part
+    in the 32 most significant bits.
+
+\item Double-precision complex arguments are passed as a pair of
+    double-precision floating-point scalar arguments. The real part is passed
+    first and the imaginary part second.
+
+\item In C++, aggregates that are not trivially copyable classes are always
+    passed by reference. A trivially copyable class has no virtual functions or
+    virtual base classes.
+
+\item Aggregates up to 8 bytes in size, when passed by value, are padded to a
+    total width of 64 bits and placed in the next available argument slot. If
+    shorter than 8 bytes, the aggregate begins at the lowest-numbered byte in
+    the storage unit, so the padding is on the highest-numbered bytes.
+
+\item Aggregates and data types larger than 8 bytes and up to 32 bytes are
+    passed by value. They are padded to a multiple of 64 bits, aligned to an
+    8-byte boundary, and placed in as many argument slots as needed. Any
+    padding required is on the highest-numbered bytes of the final argument slot.
+
+\item Aggregates and data types of size larger than 32 bytes are passed by
+    reference, with a pointer using a full argument slot in place of the
+    argument itself. It this the caller's responsibility to allocate a memory
+    buffer for a copy of the original argument, copy into it, and pass the
+    pointer to this copy in the corresponding argument slot.
+
+\item As an extension, GNU C allows variable-length arrays as members of
+    \verb|struct| or \verb|union| types. Such aggregates have a variable size
+    and are always passed by reference.
+
+\item If an argument straddles the boundary between slot~11 and slot~12, the
+    part that lies within the first twelve slots is passed in general registers,
+    and the remainder is passed in the Outgoing Arguments region.
+
+\end{itemize} The content of any padding is undefined.
+
+The first 12 arguments slots of the argument list are allocated into the
+general-purpose registers R0--R11. If more than 12 slots are required by the
+argument list, these are allocated in the Outgoing Arguments region with
+increasing addresses, starting by the 8-byte stack slot pointed to by the
+current SP (Figure~\ref{fig:stack-frame}). So slot~12 is placed at location SP,
+slot~13 at SP+8, and so on.  When allocating arguments to slots, the only
+alignment enforced is 8 bytes.  This is possible because the LVX
+architecture does not require any memory alignment for correct behavior. As a
+result, some multi-register arguments may end up in mis-aligned register
+tuples. It is the callee's responsibility to move such arguments into
+well-aligned register tuples before using them as operands of wide load-store
+and SIMD instructions. Likewise, it is the caller's responsibility to move such
+arguments from well-aligned register tuples.
+
+The rules above support variable-argument list functions in both the K\&R~C and
+the ISO~C99 languages. Since the LVX core does not specialize registers,
+there is no issue whether the presence or absence of a function prototype
+changes the way arguments are passed.  Thus, a variadic function may assume that
+the anonymous arguments that lie within the first twelve argument slots can all
+be found in the argument passing general registers, R0--R11. It may then store
+these registers to memory, providing up to 96 bytes of Anonymous Argument region
+on top of its own stack frame for R0--R11, as necessary
+(Figure~\ref{fig:stack-frame}). This arrangement places all the anonymous
+arguments in one contiguous block of memory.
+
+Return values up to 32 bytes (4$\times$8) bytes are returned directly in
+registers, according to the same rules as if they were to be passed as the first
+parameter of an argument list. Return values larger than 32 bytes or of dynamic
+size are returned in a memory buffer allocated by the caller. In this case, a
+pointer to the buffer is passed to the called function in R15.
+
+
+\subsection{Function Linkage}
+
+\subsubsection{Register Usage Conventions}
+
+Depending on the code generation model, the LVX core registers must
+obey conventions for proper function linkage. The function linkage
+conventions specify agreement between the caller and the callee on the following
+register usage: \begin{description}
+\item[reserved] All registers that are not allocatable (such as SP) must be reserved.
+\item[argument] List of function call argument registers.
+\item[result] List of function call result registers.
+\item[struct] The result pointer for functions that return a \verb|struct| or \verb|union| type.
+\item[caller] List of caller-saved registers, also known as scratch registers.
+\item[callee] List of callee-saved registers, also known as preserved registers.
+\item[program] The program counter register.
+%\item[handler] List of C++ exception handler result registers.
+%\item[veneer] List of intra-function-call temporary registers, destroyed by CALLs.
+\item[return] The return address register.
+\item[stack] The stack pointer (SP) register.
+%\item[static] The static link pointer register (caller frame).
+\item[frame] The frame pointer (FP) register.
+%\item[global] Global data or Global Offset Table (GOT) pointer.
+\item[local] Local data or Thread Local Storage (TLS) pointer.
+%\item[wired] Wired register, read and write have no effects.
+%\item[zero] Always read as zero or false register.
+%\item[one] Always read as one or true register.
+\end{description}
+Although not listed above, the coprocessor registers are considered caller-saved
+(scratch). It is recommended to use the coprocessor registers only in leaf
+functions, as saving and restoring them implies a significant run-time cost.
+
+When compiling, static storage data are accessed by building addresses in code.
+Register usage conventions for the LVX code generation mode are defined in
+Table~\ref{table:regular}. When compiling in PIC (Position-Independent Code)
+mode, static storage data are accessed relative to a Global Pointer (GP) that is
+set depending on the load module the function belongs to. The LVX PIC code
+generation assumes the callee sets the GP.
+
+\begin{table}
+\begin{center}
+\input{Convention-regular}
+\end{center}
+\caption{Register usage conventions.}
+\label{table:regular}
+\end{table}
+
+\subsubsection{Function Call Sequence}
+
+Direct and indirect function calls follow the same sequence before the call and
+after the call. The function calling sequence is as follows: \begin{description}
+
+\item[Call preparation] Values in caller-saved (scratch) registers that must be
+kept live across the call must be saved. They can be saved by either copying
+them into preserved registers or by saving them into the function stack frame.
+
+\item[Call instruction] Use CALL or ICALL for PC-relative direct calls and
+indirect calls respectively. These instructions write the value of the PC of
+the next bundle in register RA, then change the PC to the target address of the
+call.
+
+For direct calls the PC-relative displacement to the target is computed at
+link time.  Compilers may assume that the standard displacement field in the
+call instruction is sufficiently wide to reach the target of the call. If the
+displacement is too large, the linker must supply a branch stub at some
+convenient point in the code; compilers must guarantee the existence of such a
+point by ensuring that code sections in the relocatable object files are no
+larger than the maximum reach of the call instruction.
+
+\item[Function entry] The prologue code in the target function is responsible
+for allocating a frame on the memory stack, if necessary.  If it is a
+non-leaf function, it must save the RA register in the stack frame.  The
+prologue must also save any callee-saved (preserved) registers that will be used
+in this function.
+
+\item[Function exit] The epilogue code is responsible for restoring the RA
+register and any callee-saved (preserved) registers that were saved.  If a
+memory stack frame was allocated, the epilogue code must de-allocate it.
+Finally, the function exits by branching through the RA register with the RET
+instruction.
+
+\item[After the call] Any caller-saved (scratch) values should be restored.
+
+\end{description}
+
+A compiler can choose to make a tail call (including tail recursion) by simply
+branching to the function being called. However, this appears to a debugger as
+if the nested function was called directly from the caller of the original
+function.  If the calling function has a stack frame, it must pop its frame off
+the stack before making the call. Arguments should be passed in the usual
+registers.  Tail calls can only be made when all parameters can be passed in
+registers.
+
+
+\subsection{System Call Interface}
+
+From the ABI point of view, system calls are seen as regular function calls, so
+calling conventions are assumed. The system call number is available to the
+system call handler in the SN field of the PS register.
+
+
+\subsection{Relocation List}
+
+\begin{center}
+\input{Relocation}
+\end{center}
+
+
+%\subsection{ELF Specifications}
+
+%\subsection{DWARF Register Numbers}
+
+%\input{DwarfId}
+
+
+%\subsection{Compiler Intrinsic Functions}
+
+

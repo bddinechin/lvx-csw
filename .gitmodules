@@ -13,3 +13,7 @@
 [submodule "lvx-newlib"]
 	path = lvx-newlib
 	url = git@github.com:bddinechin/lvx-newlib.git
+[submodule "lvx-gem5"]
+	path = lvx-gem5
+	url = git@github.com:bddinechin/lvx-gem5.git
+	branch = lvx

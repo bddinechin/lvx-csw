@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This project builds a minimal GCC + GNU Binutils cross-toolchain for the **LVX** architecture, a new VLIW ISA inspired by (but not compatible with) Kalray's KVX architecture. The target triple is `lvx-mbr` (LVX bare/MBR runtime). The toolchain cross-compiles from x86_64-linux-gnu.
 
-The typical workflow is **porting KVX features down to the LVX subset**. The KVX reference toolchain (binutils, gcc, newlib, gdb) lives at `/home/bd3/Work2/kvx-csw/` and is the primary reference when adding or modifying LVX features.
+The typical workflow is **porting KVX features down to the LVX subset**. The KVX reference toolchain (binutils, gcc, newlib, gdb) is the primary reference when adding or modifying LVX features; see "KVX Reference Sources" below for where to get it — it is not checked out here.
 
 Planned components beyond this repo: `lvx-newlib`, `lvx-gdb`, and an Instruction Set Simulator (ISS).
 
@@ -24,20 +24,32 @@ LVX and KVX binaries are not and will not be compatible. The LVX encoding will e
 
 ## KVX Reference Sources
 
+**The KVX reference is not checked out on this machine.** It is
+`github.com/bddinechin/kvx-csw`, and like `lvx-csw` it is a **submodule superproject** —
+a plain `git clone` leaves every directory below empty. Clone it with
+`--recurse-submodules`, or `git submodule update --init <name>` for just the piece you
+want (`binutils`, `gcc`, `gdb`, `newlib`, `mds`, `processor`, `lao`, `iss`, `architecture`,
+…). Paths below are written `<kvx-csw>/…`; substitute wherever you put it.
+
 When porting a feature from KVX to LVX, consult the corresponding file in:
-- `/home/bd3/Work2/kvx-csw/binutils/` — KVX Binutils
-- `/home/bd3/Work2/kvx-csw/gcc/` — KVX GCC backend
-- `/home/bd3/Work2/kvx-csw/newlib/` — KVX Newlib (libc)
-- `/home/bd3/Work2/kvx-csw/gdb/` — KVX GDB
+- `<kvx-csw>/binutils/` — KVX Binutils
+- `<kvx-csw>/gcc/` — KVX GCC backend
+- `<kvx-csw>/newlib/` — KVX Newlib (libc)
+- `<kvx-csw>/gdb/` — KVX GDB
 
 ## ABI
 
-The LVX ABI is identical to the KVX kv4-v1 ABI. The specification is:
-`/home/bd3/Work2/kvx-csw/processor/VLIWCore/build/kvx/kv4-v1-VLIWCoreABI.pdf`
+The LVX ABI is identical to the KVX kv4-v1 ABI. The specification's source is:
+`<kvx-csw>/processor/VLIWCore/kvx/kv4-v1-VLIWCoreABI.tex`
+
+Read the `.tex`. The PDF this used to name
+(`processor/VLIWCore/build/kvx/kv4-v1-VLIWCoreABI.pdf`) is **not in git** — it is a build
+artifact of `VLIWCore/Makefile`, so it exists only after a LaTeX build, and pointing at it
+sent you looking for a file no checkout has.
 
 ## Machine Description System (MDS)
 
-A large part of the target-specific source files in binutils and GDB are **generated** from a Machine Description System rather than written by hand. **The LVX MDS is real and in active use**: it's the sibling `lvx-mds` repo (see `lvx-mds/CLAUDE.md` for the full pipeline), built from `MDS/` (a family-agnostic generator, comparable to KVX's own MDS at `/home/bd3/Work2/kvx-csw/mds/MDS/`) plus `lvx-family/` (the LVX-specific ISA description). Pipeline:
+A large part of the target-specific source files in binutils and GDB are **generated** from a Machine Description System rather than written by hand. **The LVX MDS is real and in active use**: it's the sibling `lvx-mds` repo (see `lvx-mds/CLAUDE.md` for the full pipeline), built from `MDS/` (a family-agnostic generator, comparable to KVX's own MDS at `<kvx-csw>/mds/MDS/`) plus `lvx-family/` (the LVX-specific ISA description). Pipeline:
 
 ```
 ISA description (.table files)
@@ -82,7 +94,7 @@ Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive
 | `lvx-gcc/gcc/config/lvx/lvx-registers.h` | `BE/GCC/kvx/kvx-registers.h` |
 | `lvx-gcc/gcc/config/lvx/lvx-registers.md` | `BE/GCC/kvx/kvx-registers.md` |
 
-Paths above under `BE/` are relative to `/home/bd3/Work2/kvx-csw/processor/kvx-family/`.
+Paths above under `BE/` are relative to `<kvx-csw>/processor/kvx-family/`.
 
 ## Repository Layout
 

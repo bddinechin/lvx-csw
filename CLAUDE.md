@@ -24,18 +24,33 @@ LVX and KVX binaries are not and will not be compatible. The LVX encoding will e
 
 ## KVX Reference Sources
 
-**The KVX reference is not checked out on this machine.** It is
-`github.com/bddinechin/kvx-csw`, and like `lvx-csw` it is a **submodule superproject** —
-a plain `git clone` leaves every directory below empty. Clone it with
-`--recurse-submodules`, or `git submodule update --init <name>` for just the piece you
-want (`binutils`, `gcc`, `gdb`, `newlib`, `mds`, `processor`, `lao`, `iss`, `architecture`,
-…). Paths below are written `<kvx-csw>/…`; substitute wherever you put it.
+**Checked out at `/home/bd3/Work2/kvx-csw`** (~1.6 GB). Paths below are written
+`<kvx-csw>/…` against it, so they survive a move.
+
+It is `github.com/bddinechin/kvx-csw`, and like `lvx-csw` a **submodule superproject** —
+a plain `git clone` leaves every directory below empty, and an empty submodule directory
+*exists*, so a test like `[ -e gcc ]` passes on nothing. Two things bite when re-cloning:
+
+- **Every `.gitmodules` URL is `git@github.com:`, and SSH is not set up here**
+  (`Permission denied (publickey)`), so `--recurse-submodules` fails on all of them even
+  though the superproject clones fine over HTTPS. Rewrite the scheme:
+  `git config url."https://github.com/".insteadOf "git@github.com:"` in the superproject,
+  then `git submodule update --init <names>`.
+- **`--recurse-submodules` aborts on `gcc` regardless** — see below.
+
+Initialized here: `binutils`, `gdb`, `newlib`, `mds`, `processor`, `lao`, `architecture`.
+The rest (`iss`, `iss_core`, `kEnv`, `libdwarf`, `libffi`, `libmetal`, `openamp`, `simde`,
+`sleef`, `elftoolchain-code`) resolve but are left uninitialized; init what you need.
 
 When porting a feature from KVX to LVX, consult the corresponding file in:
 - `<kvx-csw>/binutils/` — KVX Binutils
-- `<kvx-csw>/gcc/` — KVX GCC backend
 - `<kvx-csw>/newlib/` — KVX Newlib (libc)
 - `<kvx-csw>/gdb/` — KVX GDB
+- `<kvx-csw>/mds/MDS/` — KVX's own MDS, the generator this repo's `lvx-mds/MDS/` came from
+- `<kvx-csw>/processor/kvx-family/` — the KVX ISA description and its `BE/` reference outputs
+- `<kvx-csw>/lao/LAO/CDT/BSL/Int256.c` — Kalray's real `Int256_`, the oracle `lvx-mds`'s `BE/LAO/TEST` builds against
+
+**There is no KVX GCC.** `.gitmodules` points `gcc` at `git@github.com:bddinechin/kvx-gcc.git`, which does not exist — `git submodule update --init gcc` fails with *repository not found*, leaving an empty `gcc/` directory. Every other submodule resolves. So for GCC work the KVX reference is simply unavailable, and `lvx-gcc/` is on its own.
 
 ## ABI
 

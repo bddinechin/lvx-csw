@@ -1,0 +1,66 @@
+\subsection{VLIW Instruction Bundles}
+
+\subsubsection{Instruction Bundle Composition}
+
+The LVX instruction bundle is composed of 32-bit instruction syllables. Instruction syllables in a bundle encode up to two BCU (Branch \& Control Unit) instructions, two ALU (Arithmetic \& Logic) instructions, two LSU (Load-Store Unit) instructions, two EXT (coprocessor Extension) instructions, and up to eight IMMX (Immediate Extension).
+For each syllable: \begin{itemize}
+\item Bit 31 is the Parallel bit: 0 if syllable is last in the bundle, else 1.
+\item Bits 30 and 29 encode the Steering: 0 for BCU; 1 for LSU; 2 for EXT; and 3 for ALU.
+\item Immediate extension (IMMX) syllables have Steering 0 and provide 27 bits of payload.
+\item An IMMX  syllable specifies its target with a 2-bit Tag encoded in bits 28 and 27.
+\end{itemize}
+
+The LVX architecture provides eight issue slots called BCU0, BCU1, ALU0, ALU1, LSU0, LSU1, EXT0, EXT1 that correspond to execution units (EXUs).
+\begin{itemize}
+\item The IMMX syllable Tag specifies its target issue slot as: 0 for ALU0; 1 for ALU1, 2 for LSU0; 3 for LSU1.
+\item One or two IMMX syllables may apply to any of the ALU or LSU instructions.
+\item A BCU instruction may also benefit from a branch offset extension by positioning a syllable with Steering = 0 and Tag = 0 next to it.
+\item Instructions executed on the EXT EXUs may not receive an immediate extension.
+\item The maximum number of syllables in an instruction bundle is 18, but the number accepted in a valid bundle is set to 16.
+\end{itemize}
+
+Instructions that are PC-relative are based on the PC of their first syllable in the bundle.
+
+\subsubsection{Operand Immediate Extensions}
+
+The core subset of 64-bit integer instructions and load/store instructions may encode a signed 10-bit immediate operand. With one IMMX syllable, a 37-bit signed immediate operand is available. With two IMMX syllables, a 64-bit immediate operand is available. Moreover, instructions called MAKE may encode a 16-bit signed immediate in a single syllable:
+
+\begin{center}
+\begin{tabular}{|l|l|l|} \hline
+Instruction Type & Immediate Constant & Instruction Size \\ \hline
+MAKE & 16 bits signed & 32 bits \\
+MAKE & 37 bits signed & 64 bits \\
+MAKE & 64 bits & 96 bits \\
+ALU, LSU & 10 bits signed & 32 bits \\
+ALU, LSU & 37 bits signed & 64 bits \\
+ALU, LSU & 64 bits & 96 bits \\ \hline
+ALU & 32 bits signed & 64 bits \\
+SIMD & 32-bit splatted & 64 bits \\
+\hline \end{tabular}
+\end{center}
+
+In this table, the two last rows correspond to the so-called "magic immediate" extensions. In this case, the base instruction does not have a 10-bit signed immediate operand that could be extended. Rather, its source operands are GPRs specified by a 6-bit field. When an IMMX syllable targets such an instruction, the 6-bit register specifier is interpreted a one 'splat' bit and 5 payload bits. The 5 payload bits and the IMMX 27-bit payload provide 32 bits. These 32 bits are either sign-extended, or the 32 bits are replicated to the operand width. The latter is useful to provide immediate operands to SIMD instructions with up to 32-bit wide lanes.
+
+\subsubsection{Instruction Bundle Binary Layout}
+
+Instructions in a bundle are dispatched to the LVX execution units in the order BCU0, BCU1, ALU0, ALU1, LSU0, LSU1, EXT0, EXT1. So, the first syllable of any instruction must follow this order in the bundle binary layout. The immediate extension syllables (Steering = 0) for ALU and LSU instructions must appear last in the bundle with the least significant bits of payload first in case of instructions with two IMMX syllables. In case of a BCU instruction with extended offset, its IMMX appears as the second syllable (the first being the branch instruction).
+
+Moreover, instruction dispatch starts by the EXUs that have the most capabilities: \begin{itemize}
+\item BCU0 may execute all BCU instructions, while BCU1 only accepts BCU instructions that may dual-issue.
+\item ALU0 may execute all ALU FULL instructions and ALU1 may execute all ALU LITE instructions. LSU0 and LSU1 may execute the ALU TINY instructions.
+\item LSU0 may execute all the LSU instructions, while LSU1 only accepts the load and DTOUCHL instructions.
+\item EXT0 may execute the COMP instructions, while EXT1 may execute the MISC instructions.
+\end{itemize}
+
+\smallskip
+%{\color{red}Please refer to Section~\ref{sec:encoding} for the details of instruction bundle encoding.}
+
+\subsubsection{Instruction Bundles in Assembly Language}
+
+At the assembly language level, the instructions may appear in any order (except for branch instructions that are ordered), and the immediate extensions are not apparent. These extensions are inferred from the number of bits required to encode the immediate values.
+
+Each assembler instruction is separated from the next one either by an end of
+line or by a `\texttt{;}' character. The end of the bundle is marked by a
+`\texttt{;;}' alone on its line. Like with most assembly languages, a single
+`\texttt{\#}' character introduces a comment that extends until the end of the
+line.

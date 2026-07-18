@@ -12,7 +12,8 @@ config:
 	  --with-binutils-prefix=$(ROOT)/lvx-binutils \
 	  --with-gdb-prefix=$(ROOT)/lvx-gdb \
 	  --with-gcc-prefix=$(ROOT)/lvx-gcc \
-	  --with-newlib-prefix=$(ROOT)/lvx-newlib
+	  --with-newlib-prefix=$(ROOT)/lvx-newlib \
+	  --with-gem5-prefix=$(ROOT)/lvx-gem5
 
 all check refs:
 	$(MAKE) -C $(BUILD_DIR) $@

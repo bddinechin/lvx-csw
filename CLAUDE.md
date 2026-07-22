@@ -122,6 +122,7 @@ lvx-gcc/             # GCC source with LVX backend
 lvx-gcc-build/       # Out-of-tree build directory for GCC (not created yet -- lvx-gcc hasn't been built this way)
 lvx-gdb/             # GDB source with a Tier-1 LVX target port (its own out-of-tree build dir lives inside it, lvx_build_gdb_x86/)
 lvx-newlib/          # Newlib/libgloss C library, partially ported to lvx-mbr
+lvx-gem5/            # gem5 ISS retarget for LVX (submodule, branch lvx); SE-mode functional simulator
 lvx-toolchain/       # Installed cross-toolchain (bin/, lib/, include/, lvx-mbr/)
 ```
 

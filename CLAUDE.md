@@ -48,7 +48,7 @@ When porting a feature from KVX to LVX, consult the corresponding file in:
 - `<kvx-csw>/gdb/` — KVX GDB
 - `<kvx-csw>/mds/MDS/` — KVX's own MDS, the generator this repo's `lvx-mds/MDS/` came from
 - `<kvx-csw>/processor/kvx-family/` — the KVX ISA description and its `BE/` reference outputs
-- `<kvx-csw>/lao/LAO/CDT/BSL/Int256.c` — Kalray's real `Int256_`, the oracle `lvx-mds`'s `BE/LAO/TEST` builds against
+- `<kvx-csw>/lao/LAO/CDT/BSL/Int256.c` — Kalray's real `Int256_`; it *was* the oracle `lvx-mds`'s differential test built against, until Phase 0 of the GEM5-independence work replaced it with an LVX-owned `int256_t` (see `lvx-mds/MDS/BE/GEM5/TEST/int256_t.h`)
 
 **There is no KVX GCC.** `.gitmodules` points `gcc` at `git@github.com:bddinechin/kvx-gcc.git`, which does not exist — `git submodule update --init gcc` fails with *repository not found*, leaving an empty `gcc/` directory. Every other submodule resolves. So for GCC work the KVX reference is simply unavailable, and `lvx-gcc/` is on its own.
 

@@ -18,12 +18,12 @@ modern flow (formal reference model → test generation → RTL verification).
 
 ## The constraint that shapes everything: source of truth
 
-`Behavior` (the S-expression IR in `lvx-mds`, see `lvx-mds/MDS/DOC/Behavior.md`) is
-the **single source of truth** for LVX instruction semantics, and drives every MDS
-back-end (GAS encoding, scheduler, GCC/GDB models, TeX, and the ISS).
+`Behavior` (the S-expression IR in `lvx-mds`, see `lvx-mds/MDS/DOC/Behavior.md` and
+`MDS/DOC/Behavior-plan.md`) is the **single source of truth** for LVX instruction
+semantics, and drives MDS back-end (GCC/GDB models, TeX, and the ISS).
 
-The gem5 ISS **is Behavior compiled** — it reuses `BE/LAO`'s `Behavior.tuple` +
-`Decode.c` verbatim as C over a hand-written shim (see
+The gem5 ISS **is Behavior compiled** — it reuses `BE/GEM5`'s generated behavior C
+(`behavior_bodies.inc` + `Decode.c`) verbatim over a hand-written shim (see
 `lvx-gem5/PHASE0-FINDINGS.md`). Therefore **any model derived from Behavior shares
 its source with gem5**, and a differential test between two Behavior-derived
 artifacts can only catch *translation/runtime* divergence — never a *specification*

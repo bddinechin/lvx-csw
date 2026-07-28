@@ -111,90 +111,17 @@ Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive
 
 Paths above under `BE/` are relative to `<kvx-csw>/processor/kvx-family/`.
 
-## Repository Layout
+## Build Directories and Layout
 
-```
-Makefile             # Convenience wrapper for lvx-mds's build (see "Machine Description System" above)
-lvx-mds/             # Machine Description System: generates target-specific source for the repos below
-lvx-binutils/        # GNU Binutils source with LVX target support
-lvx-binutils-build/  # Out-of-tree build directory for Binutils
-lvx-gcc/             # GCC source with LVX backend
-lvx-gcc-build/       # Out-of-tree build directory for GCC (not created yet -- lvx-gcc hasn't been built this way)
-lvx-gdb/             # GDB source with a Tier-1 LVX target port (its own out-of-tree build dir lives inside it, lvx_build_gdb_x86/)
-lvx-newlib/          # Newlib/libgloss C library, partially ported to lvx-mbr
-lvx-gem5/            # gem5 ISS retarget for LVX (submodule, branch lvx); SE-mode functional simulator
-lvx-toolchain/       # Installed cross-toolchain (bin/, lib/, include/, lvx-mbr/)
-```
+All builds use out-of-tree build directories (except `lvx-gdb`'s, which lives inside that repo rather than as a sibling here, in `lvx_build_gdb_x86/`). The installed toolchain lives in `lvx-toolchain/` with binaries prefixed `lvx-mbr-` (e.g., `lvx-mbr-gcc`, `lvx-mbr-as`, `lvx-mbr-ld`). `lvx-gcc-build/` does not exist yet — `lvx-gcc` has never been built this way. `lvx-gem5` is a submodule tracked on branch `lvx`.
 
-All builds use out-of-tree build directories (except `lvx-gdb`'s, which lives inside that repo rather than as a sibling here). The installed toolchain lives in `lvx-toolchain/` with binaries prefixed `lvx-mbr-` (e.g., `lvx-mbr-gcc`, `lvx-mbr-as`, `lvx-mbr-ld`).
+For build, reconfigure, and machine-description-debugging recipes, use the `build-lvx-toolchain` skill.
 
-> **Note:** This directory was renamed from `LVX/` to `lvx-csw/`; all absolute paths in this file and the sibling repos' `CLAUDE.md`s were updated to match, and every build directory listed above was wiped and reconfigured from scratch afterward (rather than trying to patch the stale absolute paths baked into their generated `Makefile`s/`config.status`). If you ever rename this directory again, the same applies.
-
-## Building
-
-### Binutils (must be built before GCC)
-
-```bash
-cd lvx-binutils-build
-make -j$(nproc)
-make install
-```
-
-To reconfigure from scratch:
-```bash
-mkdir lvx-binutils-build && cd lvx-binutils-build
-../lvx-binutils/configure \
-  --target=lvx-mbr \
-  --prefix=/home/bd3/lvx-csw/lvx-toolchain \
-  --enable-64-bit-bfd
-make -j$(nproc) && make install
-```
-
-### GCC
-
-```bash
-cd lvx-gcc-build
-make -j$(nproc)
-make install
-```
-
-To reconfigure from scratch (requires binutils already installed):
-```bash
-mkdir lvx-gcc-build && cd lvx-gcc-build
-../lvx-gcc/configure \
-  --target=lvx-mbr \
-  --prefix=/home/bd3/lvx-csw/lvx-toolchain \
-  --disable-werror \
-  --enable-languages=c,c++ \
-  --without-headers \
-  --disable-nls \
-  --disable-shared \
-  --disable-threads \
-  --disable-libssp --disable-libgomp --disable-libquadmath \
-  --enable-64-bit-bfd \
-  --with-as=/home/bd3/lvx-csw/lvx-toolchain/bin/lvx-mbr-as \
-  --with-ld=/home/bd3/lvx-csw/lvx-toolchain/bin/lvx-mbr-ld
-make -j$(nproc) && make install
-```
+> **Note:** This directory was renamed from `LVX/` to `lvx-csw/`; all absolute paths in this file and the sibling repos' `CLAUDE.md`s were updated to match, and every out-of-tree build directory (`lvx-binutils-build/`, `lvx-mds/build_lvx/`, `lvx-gdb/lvx_build_gdb_x86/`, …) was wiped and reconfigured from scratch afterward (rather than trying to patch the stale absolute paths baked into their generated `Makefile`s/`config.status`). If you ever rename this directory again, the same applies.
 
 ## Running Tests
 
 Tests run from the build directory using DejaGnu. They require the target to be `lvx-*-*`.
-
-```bash
-# Binutils tests (in lvx-binutils-build/)
-make check-gas      # GAS assembler tests
-make check-ld       # Linker tests
-make check-binutils # Binutils utility tests
-
-# GCC tests (in lvx-gcc-build/)
-make check-gcc
-```
-
-LVX-specific test suites:
-- `lvx-binutils/gas/testsuite/gas/lvx/` — assembler tests
-- `lvx-binutils/ld/testsuite/ld-lvx/` — linker tests
-- `lvx-binutils/binutils/testsuite/binutils-all/lvx/` — objdump/readelf tests
 
 ## LVX Architecture Overview
 
@@ -209,69 +136,7 @@ The LVX ISA is a **VLIW** architecture. Key characteristics:
 
 `LVX_NUMCORES 2` in the opcode header refers to the two architecture variants (lvx-1 and lvx-2), not physical cores.
 
-## LVX-Specific Source Files
-
-### GCC backend (`lvx-gcc/gcc/config/lvx/`)
-
-| File | Purpose |
-|------|---------|
-| `lvx.h` | Target macros (compiler driver specs, ABI, storage layout) |
-| `lvx-mbr.h` | MBR (bare runtime) OS-specific overrides |
-| `lvx-linux.h` | Linux OS-specific overrides |
-| `lvx-cos.h` / `lvx-cos.opt` | COS (ClusterOS) variant |
-| `lvx.cc` | Core target hooks (~10K lines): scheduling, prologue/epilogue, cost model, constraints, RTL expanders |
-| `lvx-builtins.cc` / `lvx-builtins.def` | Target-specific builtin functions (SIMD/vector intrinsics) |
-| `lvx-shaker.c` | Post-reload pass that randomizes instruction scheduling (for validation/testing) |
-| `lvx-prologue-stack-limit.cc` | Stack limit checking pass |
-| `lvx-passes.def` | Inserts `pass_prologue_stack_limit` and `pass_lvx_shaker` into the pass pipeline |
-| `lvx.md` | Top-level machine description (includes all sub-`.md` files) |
-| `lvx-modes.def` | Mode definitions: OI (256-bit int), plus extensive SIMD vector modes up to V8OI (8×256-bit) |
-| `lvx-registers.h` | Register class definitions and names |
-| `lvx.opt` | Target-specific GCC options (`-march=`, `-mfarcall`, `-fhwloop`, `-fdual-bcu`, etc.) |
-| `mkoffload.cc` | Offload compiler driver for GPU/accelerator targets |
-
-Machine description sub-files in `lvx-gcc/gcc/config/lvx/`:
-- `scalar.md`, `vector.md` — scalar and SIMD instruction patterns
-- `builtin.md` — builtin instruction patterns (~9K lines)
-- `control.md` — branches, calls, conditional execution
-- `extension.md` — sign/zero extension patterns
-- `scheduling.md` — DFA scheduler automaton
-- `iterators.md`, `types.md`, `unspec.md` — shared attributes
-
-### Binutils (`lvx-binutils/`)
-
-| File | Purpose |
-|------|---------|
-| `opcodes/lvx-opc.c` | Opcode table (~60K lines) — the complete LVX instruction encoding table |
-| `opcodes/lvx-dis.c` / `lvx-dis.h` | Disassembler |
-| `gas/config/tc-lvx.c` | GAS assembler back-end (bundle packing, instruction encoding) |
-| `gas/config/lvx-parse.c` / `lvx-parse.h` | Operand parser for LVX assembly syntax |
-| `bfd/elfxx-lvx.c` / `elfxx-lvx.h` | ELF shared support (relocations, ABI flags) |
-| `bfd/elfnn-lvx.c` | ELF target, instantiated for 64-bit via `ARCH_SIZE` |
-| `bfd/cpu-lvx.c` | BFD CPU descriptor |
-| `include/opcode/lvx.h` | Shared opcode data structures (bundles, syllables, operands, relocations) |
-| `include/elf/lvx.h` | ELF machine number and flags |
-| `ld/emulparams/elf64lvx.sh` | Linker emulation for 64-bit LVX ELF |
-| `ld/emultempl/lvxelf.em` | Linker emulation template |
-
 See `lvx-binutils/CLAUDE.md` for binutils-specific implementation gotchas (stale generated headers, hardcoded relocation literals in `readelf.c`, etc.).
-
-## GCC Machine Description Debugging
-
-To see the **fully expanded** RTL patterns (all iterators resolved, conditions visible) for the current build:
-
-```bash
-make -C /home/bd3/lvx-csw/lvx-gcc-build/gcc mddump
-# Output: /home/bd3/lvx-csw/lvx-gcc-build/gcc/tmp-mddump.md
-```
-
-This is the authoritative source for understanding which patterns are active and how they expand. Use it when debugging mismatches between `.md` source and generated assembly.
-
-To build only libgcc (useful for testing the compiler without a full toolchain):
-
-```bash
-make -C /home/bd3/lvx-csw/lvx-gcc-build all-target-libgcc 2>&1 | grep -E 'Error:|error:|internal compiler'
-```
 
 ## LVX Bundling and Register Constraints
 
@@ -293,14 +158,4 @@ To check the bundling class of any instruction:
 ```bash
 grep -A15 '"<insn_name>"' lvx-binutils/opcodes/lvx-opc.c | grep bundling
 ```
-
-## Key GCC Options for LVX
-
-- `-march=lvx-1` — select architecture variant (default; `lvx-2` is planned but not yet implemented)
-- `-fhwloop` / `-fno-hwloop` — hardware loop generation (on by default)
-- `-fdual-bcu` — dual BCU scheduling (on by default)
-- `-fdual-lsu` — dual LSU scheduling (on by default)
-- `-mfarcall` — remove range limits on call instructions
-- `-mhal` — MPPA hardware abstraction layer mode
-- `-fshaker-seed=N` — enable the instruction shaker pass with seed N
 

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/home/bd3/lvx-csw/lvx-toolchain/bin/lvx-mbr-objdump *)",
+      "Bash(lvx-mbr-objdump *)",
+      "Bash(apt-cache *)"
+    ]
+  }
+}

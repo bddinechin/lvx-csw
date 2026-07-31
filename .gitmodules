@@ -17,3 +17,11 @@
 	path = lvx-gem5
 	url = git@github.com:bddinechin/lvx-gem5.git
 	branch = lvx
+[submodule "lvx-mlir/llvm-project"]
+	path = lvx-mlir/llvm-project
+	url = git@github.com:bddinechin/llvm-project.git
+	branch = lvx-mlir
+[submodule "lvx-llvm/llvm-project"]
+	path = lvx-llvm/llvm-project
+	url = git@github.com:bddinechin/llvm-project.git
+	branch = lvx-llvm

@@ -1,0 +1,1 @@
+export PATH=$PATH:/home/guembu/bd3/MLIR/llvm-project/build/bin

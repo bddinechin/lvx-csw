@@ -1,0 +1,5 @@
+apt-get install cmake ninja-build ccache
+apt-get install clang-tools
+apt install libatomic1
+apt install intel-opencl-icd
+

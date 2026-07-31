@@ -18,9 +18,20 @@ FRONTEND=${FRONTEND:-gcc}
 OPT=${OPT:-2}
 TESTS=${TESTS:-"$ROOT/tests/micro/*.c"}
 
-export LVX_TOOLS=${LVX_TOOLS:-/home/bd3/lvx-csw/lvx-toolchain/bin}
-export GEM5=${GEM5:-/home/bd3/lvx-csw/lvx-gem5/build/LVX/gem5.opt}
-export GEM5_CFG=${GEM5_CFG:-/home/bd3/lvx-csw/lvx-gem5/tests/lvx/run_lvx.py}
+# Defaults are derived from this checkout ($ROOT is validation/, so CSW is the
+# superproject root) rather than hardcoded: the absolute paths that used to be
+# here still said /home/bd3/lvx-csw, which stopped existing when the tree was
+# renamed, so every default pointed at nothing.
+CSW=$(cd "$ROOT/.." && pwd)
+export LVX_TOOLS=${LVX_TOOLS:-$CSW/lvx-toolchain/bin}
+# gem5-lvx1.opt is the lvx-1 core build, which is what lvx_v1 code targets.
+# The previous default, build/LVX/gem5.opt, is byte-for-byte the *lvx-2*
+# build (identical size/mtime to gem5-lvx2.opt), so it silently ran lvx_v1
+# programs on the wrong core model.
+export GEM5=${GEM5:-$CSW/lvx-gem5/build/gem5-lvx1.opt}
+export GEM5_CFG=${GEM5_CFG:-$CSW/lvx-gem5/tests/lvx/run_lvx.py}
+# Used by frontends/llvm.sh (clang + llc); harmless for the gcc front-end.
+export LLVM_BIN=${LLVM_BIN:-$CSW/lvx-llvm/llvm-project/build/bin}
 export LIB_DIR="$ROOT/lib"
 
 WD=$(mktemp -d)

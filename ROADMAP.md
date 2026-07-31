@@ -44,7 +44,7 @@ building for its *other* payoffs (below), not for validating the ISS.
 | Horizon | Work | Serves |
 |---|---|---|
 | **Now** | Finish gem5 ISS coverage (driven by what GCC/LLVM/MLIR emit) + **native-x86 differential harness** + `lvx-newlib` runtime; fix the blocking `lvx-gcc` codegen bugs | GCC/LLVM/MLIR validation |
-| **Then** | KVX-ISS / SoftFloat **helper-level oracle** for the opaque FP/SIMD `APPLY` bodies, as FP coverage arrives | ISS correctness on helper bodies |
+| **Then** | SoftFloat **helper-level oracle** for the opaque FP/SIMD `APPLY` bodies, as FP coverage arrives | ISS correctness on helper bodies |
 | **Medium** | **Behavior → Sail** emitter: publishable formal spec, Isla symbolic execution / test generation, Sail typecheck as a CI pass complementing `Width.pm` | verification maturity |
 | **Long** | **Sail → SystemVerilog** as a formal per-instruction reference model for RTL verification | LVX silicon bring-up |
 | **Orthogonal / deferrable** | **Execution → Behavior** single-source authoring (compile the doc-only `execution:` view to the ground-truth `behavior:`) | maintainability — *not on the ISS critical path*, since the ISS consumes Behavior directly |
@@ -58,5 +58,5 @@ building for its *other* payoffs (below), not for validating the ISS.
   structure**. The resulting SV is a *functional, single-instruction* reference;
   pipelining and VLIW bundling remain the RTL's job, verified per-instruction against
   that reference.
-- LVX is RISC-V-flavored where it counts (FP is RISC-V FP, rounding modes, kv4-v1
+- LVX is RISC-V-flavored where it counts (FP is RISC-V FP, rounding modes, LP64
   ABI), so the Sail RISC-V model and its tooling are natural to crib from.

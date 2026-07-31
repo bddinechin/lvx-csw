@@ -4,72 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This project builds a minimal GCC + GNU Binutils cross-toolchain for the **LVX** architecture, a new VLIW ISA inspired by (but not compatible with) Kalray's KVX architecture. The target triple is `lvx-mbr` (LVX bare/MBR runtime). The toolchain cross-compiles from x86_64-linux-gnu.
-
-The typical workflow is **porting KVX features down to the LVX subset**. The KVX reference toolchain (binutils, gcc, newlib, gdb) is the primary reference when adding or modifying LVX features; see "KVX Reference Sources" below for where to get it — it is not checked out here.
+This project builds a minimal GCC + GNU Binutils cross-toolchain for the **LVX** architecture, a VLIW ISA. The target triple is `lvx-mbr` (LVX bare/MBR runtime). The toolchain cross-compiles from x86_64-linux-gnu.
 
 Sibling components (all submodules of `lvx-csw`): `lvx-newlib` (libc), `lvx-gdb` (debugger), and `lvx-gem5` — the gem5-based ISS. Its `arch/lvx` SE-mode port runs scalar integer **and** floating-point programs; the full scalar f16/f32/f64 FP surface is implemented in the runtime shim over Berkeley SoftFloat (RISC-V-conformant — see `lvx-gem5/STATUS.md` and the `lvx-fp-matches-riscv` project memory).
 
-## LVX vs KVX Architecture
-
-KVX has three variants: `kv3-1` (KV3_V1), `kv3-2` (KV3_V2), `kv4-1` (KV4_V1).
+## LVX Variants
 
 LVX has two variants:
-- `lvx-1` (LVX_1) — current, a simplification of `kv4-1`
-- `lvx-2` (LVX_2) — not yet specified; planned extension of `lvx-1` with 512-bit SIMD instructions
+- `lvx-1` (LVX_1) — current.
+- `lvx-2` (LVX_2) — not yet specified; planned extension of `lvx-1` with 512-bit SIMD instructions.
 
-LVX and KVX binaries are not and will not be compatible. The LVX encoding will eventually diverge further from KVX.
-
-**LVX is LP64 only.** There is no 32-bit mode. The `-m32` option and associated `TARGET_32` guards in the code are KVX artifacts that should be removed.
-
-## KVX Reference Sources
-
-**Checked out at `../kv4-csw`** (i.e. `/home/guembu/bd3/kv4-csw`, sibling of
-`lvx-csw`). The old `/home/bd3/Work2/kvx-csw` path is **dead** — use `../kv4-csw`.
-This checkout is fuller than the notes below (all the referenced submodules —
-`binutils`, `gdb`, `newlib`, `mds/MDS`, `processor/kvx-family`, `lao`,
-`architecture`, and more — are already populated), so the re-clone gotchas below
-apply only to a *fresh* clone elsewhere, not to this tree. Paths below are written
-`<kvx-csw>/…` against it, so they survive a move.
-
-It is `github.com/bddinechin/kvx-csw`, and like `lvx-csw` a **submodule superproject** —
-a plain `git clone` leaves every directory below empty, and an empty submodule directory
-*exists*, so a test like `[ -e gcc ]` passes on nothing. Two things bite when re-cloning:
-
-- **Every `.gitmodules` URL is `git@github.com:`, and SSH is not set up here**
-  (`Permission denied (publickey)`), so `--recurse-submodules` fails on all of them even
-  though the superproject clones fine over HTTPS. Rewrite the scheme:
-  `git config url."https://github.com/".insteadOf "git@github.com:"` in the superproject,
-  then `git submodule update --init <names>`.
-- **`--recurse-submodules` aborts on `gcc` regardless** — see below.
-
-Initialized here: `binutils`, `gdb`, `newlib`, `mds`, `processor`, `lao`, `architecture`.
-The rest (`iss`, `iss_core`, `kEnv`, `libdwarf`, `libffi`, `libmetal`, `openamp`, `simde`,
-`sleef`, `elftoolchain-code`) resolve but are left uninitialized; init what you need.
-
-When porting a feature from KVX to LVX, consult the corresponding file in:
-- `<kvx-csw>/binutils/` — KVX Binutils
-- `<kvx-csw>/newlib/` — KVX Newlib (libc)
-- `<kvx-csw>/gdb/` — KVX GDB
-- `<kvx-csw>/mds/MDS/` — KVX's own MDS, the generator this repo's `lvx-mds/MDS/` came from
-- `<kvx-csw>/processor/kvx-family/` — the KVX ISA description and its `BE/` reference outputs
-- `<kvx-csw>/lao/LAO/CDT/BSL/Int256.c` — Kalray's real `Int256_`; it *was* the oracle `lvx-mds`'s differential test built against, until Phase 0 of the GEM5-independence work replaced it with an LVX-owned `int256_t` (see `lvx-mds/MDS/BE/GEM5/TEST/int256_t.h`)
-
-**There is no KVX GCC.** `.gitmodules` points `gcc` at `git@github.com:bddinechin/kvx-gcc.git`, which does not exist — `git submodule update --init gcc` fails with *repository not found*, leaving an empty `gcc/` directory. Every other submodule resolves. So for GCC work the KVX reference is simply unavailable, and `lvx-gcc/` is on its own.
+**LVX is LP64 only.** There is no 32-bit mode; the `-m32` option and associated `TARGET_32` guards in the code should be removed.
 
 ## ABI
 
-The LVX ABI is identical to the KVX kv4-v1 ABI. The specification's source is:
-`<kvx-csw>/processor/VLIWCore/kvx/kv4-v1-VLIWCoreABI.tex`
-
-Read the `.tex`. The PDF this used to name
-(`processor/VLIWCore/build/kvx/kv4-v1-VLIWCoreABI.pdf`) is **not in git** — it is a build
-artifact of `VLIWCore/Makefile`, so it exists only after a LaTeX build, and pointing at it
-sent you looking for a file no checkout has.
+The LVX ABI is LP64. Integer/pointer arguments pass in `r0`–`r7`, with the return value in `r0`. The register conventions (argument/return/callee-saved/frame roles) are captured in `lvx-mds`'s `Convention-lvx-regular` table, which `BE/LIBC` reads to generate the `setjmp`/`longjmp` save layout (`jmpbuf.h`) — see the MDS section below.
 
 ## Machine Description System (MDS)
 
-A large part of the target-specific source files in binutils and GDB are **generated** from a Machine Description System rather than written by hand. **The LVX MDS is real and in active use**: it's the sibling `lvx-mds` repo (see `lvx-mds/CLAUDE.md` for the full pipeline), built from `MDS/` (a family-agnostic generator, comparable to KVX's own MDS at `<kvx-csw>/mds/MDS/`) plus `lvx-family/` (the LVX-specific ISA description). Pipeline:
+A large part of the target-specific source files in binutils and GDB are **generated** from a Machine Description System rather than written by hand. **The LVX MDS is real and in active use**: it's the sibling `lvx-mds` repo (see `lvx-mds/CLAUDE.md` for the full pipeline), built from `MDS/` (a family-agnostic generator) plus `lvx-family/` (the LVX-specific ISA description). Pipeline:
 
 ```
 ISA description (.table files)
@@ -105,16 +58,7 @@ Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive
 
 `lvx-newlib`'s `setjmp.S` and `lvx-gdb`'s `lvx-common-tdep.c` (`lvx_get_longjmp_target`) both `#include` the generated `jmpbuf.h`/`lvx-jmpbuf.h` rather than hardcoding the RA offset — this used to be two hand-encoded copies of the same layout, cross-referenced only by a source comment on each side.
 
-`BE/GDB` and `BE/GCC` back-ends exist in `lvx-mds` and `make config` already points `--with-gdb-prefix`/`--with-gcc-prefix` at the right places, but neither has actually been run against its target repo yet. `lvx-gdb/gdb/lvx-mds-tdep.c` is a hand-written "Tier-1" port from KVX instead of `BE/GDB`'s output (see `lvx-gdb/CLAUDE.md`); the `lvx-gcc/gcc/config/lvx/` files below are likewise still hand-adapted from KVX and untouched by any MDS regeneration so far:
-
-| File | KVX equivalent (MDS-generated reference) |
-|------|------------------------------------------|
-| `lvx-gcc/gcc/config/lvx/lvx_builtins.h` | `BE/GCC/kvx/kvx_builtins.h` |
-| `lvx-gcc/gcc/config/lvx/lvx_macros.h` | `BE/GCC/kvx/kvx_macros.h` |
-| `lvx-gcc/gcc/config/lvx/lvx-registers.h` | `BE/GCC/kvx/kvx-registers.h` |
-| `lvx-gcc/gcc/config/lvx/lvx-registers.md` | `BE/GCC/kvx/kvx-registers.md` |
-
-Paths above under `BE/` are relative to `<kvx-csw>/processor/kvx-family/`.
+`BE/GDB` and `BE/GCC` back-ends exist in `lvx-mds` and `make config` already points `--with-gdb-prefix`/`--with-gcc-prefix` at the right places, but neither has actually been run against its target repo yet. `lvx-gdb/gdb/lvx-mds-tdep.c` is a hand-written "Tier-1" tdep instead of `BE/GDB`'s output (see `lvx-gdb/CLAUDE.md`); the `lvx-gcc/gcc/config/lvx/` files (`lvx_builtins.h`, `lvx_macros.h`, `lvx-registers.h`, `lvx-registers.md`) are likewise still hand-written and untouched by any MDS regeneration so far.
 
 ## Build Directories and Layout
 
@@ -151,7 +95,7 @@ LVX instructions have three bundling classes that affect both scheduling and reg
 - **LITE**: Takes a full ALU slot (max 2 per bundle). **W and Z register operands must have the same parity** — both even (`worddRegE`, class 80) or both odd (`worddRegO`, class 81). GCC must use the `"R"` constraint (EGR_REGS, even GPRs) to satisfy this.
 - **FULL**: One per bundle, full ALU slot.
 
-**Critical difference from KVX**: In KVX, 64-bit SIMD operations (`addwp`, `addhq`, `addbo`, etc.) are TINY (unrestricted registers). In LVX they are LITE (parity-constrained). GCC patterns inherited from KVX that use `"r"` constraints and `alu_tiny` type for these operations are **wrong for LVX** and will produce assembler errors like:
+**Watch the SIMD bundling class**: In LVX, 64-bit SIMD operations (`addwp`, `addhq`, `addbo`, etc.) are LITE (parity-constrained), not TINY. GCC patterns that use `"r"` constraints and `alu_tiny` type for these operations are **wrong for LVX** and will produce assembler errors like:
 
 ```
 Error: Instruction `addwp' expected one of [RegClass_lvx_v1_worddRegE]

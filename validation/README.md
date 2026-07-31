@@ -30,14 +30,14 @@ Output is TAP plus a bucketed summary.
 - The harness reports the result identically on both targets: a framed stdout line
   `__LVXR__ <n>` (primary oracle) and the exit code `n & 0xff` (secondary).
 - On LVX there is **no full newlib**; `lib/crt.S` supplies a freestanding `_start`
-  plus `write`/`exit` via `scall` (kv4-v1 ABI, #17/#1 — the two syscalls gem5's
+  plus `write`/`exit` via `scall` (the LVX syscall ABI, #17/#1 — the two syscalls gem5's
   shim implements today).
 - The LVX run reuses lvx-gem5's own verified config,
   `lvx-gem5/tests/lvx/run_lvx.py`.
 
 ## Outcome buckets (why this matters right now)
 
-The LVX GCC port is **unfinished**, and LVX is missing some KVX instructions, so
+The LVX GCC port is **unfinished**, and LVX is missing some instructions GCC emits, so
 early on most signal is "does it build." The harness therefore separates:
 
 | Bucket | Stage | Likely cause |
@@ -46,7 +46,7 @@ early on most signal is "does it build." The harness therefore separates:
 | `MISMATCH` | run | codegen / semantics / ISS bug — the real correctness signal |
 | `COMPILE_ICE` | C→asm | GCC internal error (see lvx-newlib CLAUDE.md bug clusters) |
 | `COMPILE_FAIL` | C→asm | other GCC frontend/codegen failure |
-| `ASSEMBLE_MISSING_INSN` | asm→obj | **the ISA lacks an instruction GCC emitted** (the KVX↔LVX gap) |
+| `ASSEMBLE_MISSING_INSN` | asm→obj | **the ISA lacks an instruction GCC emitted** (the missing-instruction gap) |
 | `ASSEMBLE_FAIL` | asm→obj | other assembler error |
 | `LINK_FAIL` | link | unresolved symbol / layout |
 | `RUN_CRASH` | gem5 | the ISS itself died on a signal (panic stub / unimplemented opcode = SIGILL) — an ISS coverage gap |
@@ -78,8 +78,8 @@ in `lvx-gem5`, see the `gem5-callret-blocker` memory):
 
 The remaining two failures are **not** ISS bugs: GCC lowers integer `/` and `%`
 to an FP-reciprocal sequence emitting `frecw.rn`/`fwidenlwd`, mnemonics the
-assembler rejects (`FRECW` was removed from the ISA). That's the unfinished-GCC /
-KVX-vs-LVX gap — the next frontier, on the compiler side.
+assembler rejects (`FRECW` was removed from the ISA). That's the unfinished-GCC,
+missing-instruction gap — the next frontier, on the compiler side.
 
 ## Localizing a MISMATCH
 

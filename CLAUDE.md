@@ -8,7 +8,7 @@ This project builds a minimal GCC + GNU Binutils cross-toolchain for the **LVX**
 
 The typical workflow is **porting KVX features down to the LVX subset**. The KVX reference toolchain (binutils, gcc, newlib, gdb) is the primary reference when adding or modifying LVX features; see "KVX Reference Sources" below for where to get it — it is not checked out here.
 
-Planned components beyond this repo: `lvx-newlib`, `lvx-gdb`, and an Instruction Set Simulator (ISS).
+Sibling components (all submodules of `lvx-csw`): `lvx-newlib` (libc), `lvx-gdb` (debugger), and `lvx-gem5` — the gem5-based ISS. Its `arch/lvx` SE-mode port runs scalar integer **and** floating-point programs; the full scalar f16/f32/f64 FP surface is implemented in the runtime shim over Berkeley SoftFloat (RISC-V-conformant — see `lvx-gem5/STATUS.md` and the `lvx-fp-matches-riscv` project memory).
 
 ## LVX vs KVX Architecture
 
@@ -24,7 +24,12 @@ LVX and KVX binaries are not and will not be compatible. The LVX encoding will e
 
 ## KVX Reference Sources
 
-**Checked out at `/home/bd3/Work2/kvx-csw`** (~1.6 GB). Paths below are written
+**Checked out at `../kv4-csw`** (i.e. `/home/guembu/bd3/kv4-csw`, sibling of
+`lvx-csw`). The old `/home/bd3/Work2/kvx-csw` path is **dead** — use `../kv4-csw`.
+This checkout is fuller than the notes below (all the referenced submodules —
+`binutils`, `gdb`, `newlib`, `mds/MDS`, `processor/kvx-family`, `lao`,
+`architecture`, and more — are already populated), so the re-clone gotchas below
+apply only to a *fresh* clone elsewhere, not to this tree. Paths below are written
 `<kvx-csw>/…` against it, so they survive a move.
 
 It is `github.com/bddinechin/kvx-csw`, and like `lvx-csw` a **submodule superproject** —

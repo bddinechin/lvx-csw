@@ -62,7 +62,7 @@ Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive
 
 ## Build Directories and Layout
 
-All builds use out-of-tree build directories (except `lvx-gdb`'s, which lives inside that repo rather than as a sibling here, in `lvx_build_gdb_x86/`). The installed toolchain lives in `lvx-toolchain/` with binaries prefixed `lvx-mbr-` (e.g., `lvx-mbr-gcc`, `lvx-mbr-as`, `lvx-mbr-ld`). `lvx-gcc-build/` does not exist yet — `lvx-gcc` has never been built this way. `lvx-gem5` is a submodule tracked on branch `lvx`.
+All builds use out-of-tree build directories (except `lvx-gdb`'s, which lives inside that repo rather than as a sibling here, in `lvx_build_gdb_x86/`). The installed toolchain lives in `lvx-toolchain/` with binaries prefixed `lvx-mbr-` (e.g., `lvx-mbr-gcc`, `lvx-mbr-as`, `lvx-mbr-ld`). `lvx-gem5` is a submodule tracked on branch `lvx`.
 
 For build, reconfigure, and machine-description-debugging recipes, use the `build-lvx-toolchain` skill.
 

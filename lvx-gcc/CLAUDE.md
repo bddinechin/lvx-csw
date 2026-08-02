@@ -163,10 +163,36 @@ becomes unmatched RTL and an ICE rather than an assembler error. Use `force_reg`
 
 ## Keep GCC proper untouched
 
-The only files shared with other targets that this port modifies are the three registration
-hooks every port has: `config.sub`, `gcc/config.gcc`, `libgcc/config.host`. `gcc/rtl.h` and
-`gcc/common.opt` were reverted to upstream — a `MEM_NON_TEMPORAL_P` that nothing ever set,
-and a `-fmodulo-sched-bundle` only `lvx.cc` read (now a `Target` option in `lvx.opt`).
+Files shared with other targets that this port modifies: the three registration hooks every
+port has — `config.sub`, `gcc/config.gcc`, `libgcc/config.host` — plus `gcc/sched-deps.cc`
+and `gcc/haifa-sched.cc`. `gcc/rtl.h` and `gcc/common.opt` were reverted to upstream: a
+`MEM_NON_TEMPORAL_P` that nothing ever set, and a `-fmodulo-sched-bundle` only `lvx.cc` read
+(now a `Target` option in `lvx.opt`).
+
+The two scheduler files are a real upstream bug, not a target hook. **LVX has no
+condition-code register** — `cb.even`/`cb.odd` branch on a bit extract, so a jump condition
+looks like `(eq (zero_extract r 1 0) 0)` where every CC target has `(ne (reg:CC) 0)`. The
+post-reload scheduler calls `REGNO (XEXP (cond, 0))` without checking `REG_P`, which on a
+`zero_extract` reads the wrong union member and indexes `HARD_REG_SET::elts` out of bounds.
+Both sites now take the conservative branch when the register cannot be named. That was 26
+of the newlib ICEs.
+
+Expect more of this class: anything in the middle end that assumes a condition is a
+register comparison is untested against a target like this.
+
+## Debugging an ICE
+
+Build a **second** compiler with checking enabled and reproduce there first:
+
+```bash
+../lvx-gcc/gcc/configure --target=lvx-mbr --prefix=/tmp/lvx-check-install \
+  --enable-checking=yes,rtl,extra,tree,gc ...      # separate build dir
+```
+
+A segfault gives a stack but no diagnosis; RTL checking turns the same crash into
+`RTL check: expected code 'reg', have 'zero_extract' in rhs_regno, at rtl.h:1950`, which
+names the fault outright and finds sibling sites immediately. Keep it out of
+`lvx-gcc-build/` so the installed toolchain and the harness numbers stay untouched.
 
 Resist adding to that list. If something seems to need a change in GCC proper, check first
 whether anything actually consumes it.

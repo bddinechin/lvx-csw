@@ -216,11 +216,49 @@ half is wrong. Division and `__int128` *are* covered now (`divmod.c`, `i128.c`).
 
 For SIMD there is no execution oracle yet, so the checks that stand in for one are: the
 mnemonic audit above, assembling the exact emitted forms by hand under `-march=lvx-2`
-(which catches operand shape and arity, not just the mnemonic), and where the vectorizer
-cooperates, reading the emitted asm — `(a[i] + b[i]) >> 1` over `unsigned char` reaches
-`avgubx`, for instance. The vector ternary that would reach `VEC_COND` directly is
-C++-only, and **this build has no C++ front end configured**, which is why the rotate and
-`cmove` patterns are verified by construction rather than by emission.
+(which catches operand shape and arity, not just the mnemonic), and reading the emitted
+asm. The last needs a way to reach the pattern:
+
+- **explicit vector types with the ternary** — `c ? a : b` on vectors is **C++ only**, and
+  `lvx-gcc-build` is configured `--enable-languages=c`. `lvx-gcc-build-cxx` is a second
+  build dir with `c,c++` for exactly this; `make all-gcc` there is enough, since `-S` only
+  needs `cc1plus`. Use `xg++ -B<builddir>/gcc`. This is what confirms the `cmove` family.
+- **the vectorizer**, when it cooperates — `(a[i] + b[i]) >> 1` over `unsigned char`
+  reaches `avgubx`.
+
+## SIMD conditional move: the patterns are fine, if-conversion is the gate
+
+`cmove{bx,ho,wq,dp}` **are** selected. With vector types, `c ? a : b` compiles to one
+instruction per 128 bits, and a 256-bit select to a pair over `%L`/`%M`. The live path is
+`vec_cmp<mode><mask>` for the mask and `vcond_mask_<mode><mask>` →
+`lvx_expand_masked_move`, which emits the `if_then_else` the `*select*` patterns match —
+except where an operand is constant 0 or -1, when it deliberately lowers to AND/IOR
+instead, which is fewer instructions and wants no change.
+
+What does **not** reach them is the ordinary C loop:
+
+```c
+for (i) r[i] = c[i] ? a[i] : b[i];        /* not vectorized */
+for (i) { int x = a[i], y = b[i]; r[i] = c[i] ? x : y; }   /* -> cmovewq */
+```
+
+The first fails with *"not vectorized: unsupported control flow in loop"*. If-conversion
+refuses it because `a[i]` and `b[i]` are **conditional loads** on opposite arms and it
+cannot prove speculating them through unknown-provenance pointers will not trap, so the
+branch survives into the vectorizer. Hoisting both loads removes the speculation and the
+same loop vectorizes to `cmovewq`. Nothing about this is target-specific to the compare or
+the move — it is upstream of pattern selection entirely.
+
+The standard unlock is a **masked load**: with a `maskload`/`maskstore` optab, ifcvt turns
+the conditional load into a masked one instead of giving up. The port implements neither.
+LVX has the instruction to build them on — `GUARD` predicates the other units of its
+bundle, and `control.md` already emits `guard.<suffix>%1z` — so this is a real piece of
+work rather than a missing capability.
+
+Also dead: the `vcond<mode><mode>` and `vcondu<mode><mode>` expanders in `vector.md`.
+GCC 17 removed `vcond_optab`/`vcondu_optab` from the middle end — `optabs.def` has only
+`vcond_mask_optab` — so nothing will ever call them, and `lvx_expand_conditional_move` is
+reachable only through `mov<mode>cc` and the builtins.
 
 For build and reconfigure recipes use the `build-lvx-toolchain` skill.
 

@@ -128,6 +128,39 @@ operands to share a parity, satisfied by an `EGR_REGS` class and an `"R"` constr
 the ISA refactoring removed every Format relying on those classes, so `EGR_REGS`,
 `OGR_REGS` and the `"R"`/`"Q"` constraints are gone and those operands take plain `"r"`.
 
+## Immediate operands: read every opcode entry
+
+A mnemonic has **several entries** in `lvx-opc.c`, one per encoding width, exactly as
+`maked` has simple/double/triple forms. Grepping the first entry and stopping will make a
+register-only instruction of one that takes an immediate in its double-word form.
+
+The rule worth knowing: **any Format whose name ends `.W` or `.M` enables a sign-extended
+32-bit immediate**, in the *third* operand slot. So
+
+```
+ADDSD    formats: [ ALU_DWRR1, ALU_DWRR1.M ]                        -> imm32 only
+ADDD     formats: [ ALU_DWRR0, ALU_DWRR0.M, ALU_DWRI, .X, .Y ]      -> imm32 + s10/s37/s64
+```
+
+Both take an immediate; only `addd` also has the short `ALU_DWRI` forms. An instruction
+with no `ALU_DWRI` variant must not offer `I10`/`I37`/`i` constraints.
+
+Because the immediate is in the third slot, **which GCC operand may carry it depends on
+the template's print order**:
+
+```
+addusd %0 = %1, %2    -> operand 2 prints last, so operand 2 takes the immediate
+sbfusd %0 = %2, %1    -> operand 1 prints last, so operand 1 takes it
+```
+
+Getting that backwards yields `sbfusd $r1 = 4, $r1`, which the assembler rejects with
+"expected one of [RegClass_lvx_v1_singleReg]" — an *operand-position* error the mnemonic
+audit cannot see, since the mnemonic itself is real. Only assembling finds it.
+
+And note `gen_*` functions do not check predicates: an expander calling
+`emit_insn (gen_foo_2 (...))` directly can hand a constant to a register-only slot, which
+becomes unmatched RTL and an ICE rather than an assembler error. Use `force_reg` there.
+
 ## Keep GCC proper untouched
 
 The only files shared with other targets that this port modifies are the three registration

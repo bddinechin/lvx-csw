@@ -7,9 +7,6 @@
 [submodule "lvx-gdb"]
 	path = lvx-gdb
 	url = git@github.com:bddinechin/lvx-gdb.git
-[submodule "lvx-gcc"]
-	path = lvx-gcc
-	url = git@github.com:bddinechin/lvx-gcc.git
 [submodule "lvx-newlib"]
 	path = lvx-newlib
 	url = git@github.com:bddinechin/lvx-newlib.git
@@ -25,3 +22,7 @@
 	path = lvx-llvm/llvm-project
 	url = git@github.com:bddinechin/llvm-project.git
 	branch = lvx-llvm
+[submodule "lvx-gcc/gcc"]
+	path = lvx-gcc/gcc
+	url = git@github.com:bddinechin/gcc.git
+	branch = lvx-gcc

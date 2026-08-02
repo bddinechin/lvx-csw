@@ -37,7 +37,7 @@ make install
 To reconfigure from scratch (requires binutils already installed):
 ```bash
 mkdir lvx-gcc-build && cd lvx-gcc-build
-../lvx-gcc/configure \
+../lvx-gcc/gcc/configure \
   --target=lvx-mbr \
   --prefix=/home/bd3/lvx-csw/lvx-toolchain \
   --disable-werror \

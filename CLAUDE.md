@@ -60,9 +60,15 @@ Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive
 
 `BE/GDB` and `BE/GCC` back-ends exist in `lvx-mds` and `make config` already points `--with-gdb-prefix`/`--with-gcc-prefix` at the right places. `BE/GDB` has not been run against its target repo: `lvx-gdb/gdb/lvx-mds-tdep.c` is a hand-written "Tier-1" tdep instead of its output (see `lvx-gdb/CLAUDE.md`).
 
-`BE/GCC` is a mixed case. `lvx-gcc/gcc/config/lvx/lvx-registers.h` and `lvx-registers.md` **are** its output and are byte-identical to `lvx-mds/lvx-refs/BE/GCC/lvx/` — treat them as generated and don't hand-edit them. They had previously drifted (an `EGR_REGS` class added by hand, a stale `rvc` register name, a different `LVX_FRAME_POINTER_VIRT_REGNO`), which is exactly the failure mode to avoid. Note `lvx-family/BE/GCC` does not exist yet — only the family-agnostic `MDS/BE/GCC` — so there is no LVX-specific half of that back-end. `lvx_builtins.h` and `lvx_macros.h` remain hand-written and untouched by any regeneration.
+`BE/GCC` is a mixed case. `lvx-gcc/gcc/gcc/config/lvx/lvx-registers.h` and `lvx-registers.md` **are** its output and are byte-identical to `lvx-mds/lvx-refs/BE/GCC/lvx/` — treat them as generated and don't hand-edit them. They had previously drifted (an `EGR_REGS` class added by hand, a stale `rvc` register name, a different `LVX_FRAME_POINTER_VIRT_REGNO`), which is exactly the failure mode to avoid. Note `lvx-family/BE/GCC` does not exist yet — only the family-agnostic `MDS/BE/GCC` — so there is no LVX-specific half of that back-end. `lvx_builtins.h` and `lvx_macros.h` remain hand-written and untouched by any regeneration.
 
 ## Build Directories and Layout
+
+`lvx-gcc/` follows the same shape as `lvx-llvm/`: a plain directory in this
+repo holding a submodule that is a genuine GitHub fork of the upstream project.
+The fork of `gcc-mirror/gcc` lives at `lvx-gcc/gcc` on branch `lvx-gcc`, so the
+backend sources are at `lvx-gcc/gcc/gcc/config/lvx/` — one level deeper than
+before, exactly as `lvx-mlir/llvm-project/mlir/...` is.
 
 All builds use out-of-tree build directories (except `lvx-gdb`'s, which lives inside that repo rather than as a sibling here, in `lvx_build_gdb_x86/`). The installed toolchain lives in `lvx-toolchain/` with binaries prefixed `lvx-mbr-` (e.g., `lvx-mbr-gcc`, `lvx-mbr-as`, `lvx-mbr-ld`). `lvx-gem5` is a submodule tracked on branch `lvx`.
 

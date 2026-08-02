@@ -1,1 +1,1 @@
-export PATH=$PATH:/home/guembu/bd3/lvx-llvm/llvm-project/build/bin
+export PATH=$PATH:/home/bd3/lvx-csw/lvx-llvm/llvm-project/build/bin

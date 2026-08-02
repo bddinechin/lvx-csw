@@ -251,9 +251,37 @@ the move — it is upstream of pattern selection entirely.
 
 The standard unlock is a **masked load**: with a `maskload`/`maskstore` optab, ifcvt turns
 the conditional load into a masked one instead of giving up. The port implements neither.
-LVX has the instruction to build them on — `GUARD` predicates the other units of its
-bundle, and `control.md` already emits `guard.<suffix>%1z` — so this is a real piece of
-work rather than a missing capability.
+
+### This is the next GCC targeting step (agreed 2026-08-02, not started)
+
+Build them on **`BLEND`, not `GUARD`**. `GUARD` predicates whole execution units; `BLEND`
+predicates *lanes*, which is what a masked load needs. It is BCU-slot like `GUARD`, spelled
+`blend<lanetodo><lanesize> <mask>? <activate>`, and the port already has the bundling idiom
+for that shape (`guard.wnez $r9? lwz $r10 = 4[$r3]` — predicate and predicated instruction
+in one bundle).
+
+Do **not** model it with `define_cond_exec` the way `GUARD` is modelled: GCC's cond_exec is
+all-or-nothing on a scalar condition and would mis-model per-lane predication. Use the
+`maskload`/`maskstore` optabs, where the mask is an explicit operand GCC understands
+per-lane.
+
+`BLEND`'s mask is the **packed bit-per-lane** form, which is what `COMP*` writes — so this
+needs `TARGET_VECTORIZE_GET_MASK_MODE` (`lvx_get_mask_mode`, not currently defined; the
+default `related_int_vector_mode` gives the same-size vector) returning a scalar integer
+mode with one bit per lane. That hook is a **C function queried per mode**, not a global
+switch and not a pattern: it decides which pattern *name* the middle end looks for, since
+`vec_cmp`, `vcond_mask`, `maskload` and `maskstore` are `OPTAB_CD` and carry both modes in
+the name — `vec_cmpv4siv4si` today versus `vec_cmpv4siqi` with a bit-mask.
+
+The two representations **coexist**; nothing here removes the same-size vector compare that
+OpenCL-C requires. `a < b` at source level keeps its vector type and expands through
+`vec_cmp<mode><samesizemode>` → `COMPN*`; the hook steers only the vectorizer's internal
+masks, which go through `COMP*`.
+
+Order of work: `lvx_get_mask_mode` → `vec_cmp<mode><bitmask>` emitting `COMP*`/`FCOMP*` →
+`maskload`/`maskstore` (and optionally `vcond_mask`) emitting `BLEND`. Note the ISS has no
+`blend` helper — it is one of the panic stubs — so this cannot be executed under gem5 yet,
+only assembled and read.
 
 Also dead: the `vcond<mode><mode>` and `vcondu<mode><mode>` expanders in `vector.md`.
 GCC 17 removed `vcond_optab`/`vcondu_optab` from the middle end — `optabs.def` has only

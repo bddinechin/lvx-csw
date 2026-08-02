@@ -161,3 +161,19 @@ For build and reconfigure recipes use the `build-lvx-toolchain` skill.
 - `libgcc/config/lvx/divmodvx{si,hi,qi}.c` are left out of the default build: they are
   written against vector types and SIMD builtins, and reference builtins removed with the
   KVX cleanup. They need updating alongside an lvx-2 multilib.
+- **`__divv4sf3` and the other vector FP dividers are undefined.** The scalar `divsf3.c`
+  and `divdf3.c` were retired because they really are unreachable — `divsf3`/`divdf3`/
+  `divhf3` expand straight to `fdivw`/`fdivd`/`fdivh`. The vector ones are different:
+  there is no vector `fdiv`, so on lvx-2 a `v4sf` division still emits `call __divv4sf3`.
+  Latent while libgcc does not build, but it needs the same lvx-2 multilib.
+
+## KVX heritage: exact versus seed
+
+`frec*` and `frsr*` in KVX were the **exact** reciprocal and reciprocal square root.
+LVX generalises them with `fdiv*` and `fsqrt*`, which is why no `frec*` exists here.
+They are **not** the same as `fsrec*`/`fsrsr*`, which are *seeds* — approximations meant
+to be refined. Mapping one onto the other silently degrades precision, and nothing
+catches it: it builds, the mnemonic exists, the mddump audit passes, the assembler is
+happy, and the differential harness has no floating point. A seed belongs only behind
+`flag_reciprocal_math`, `flag_unsafe_math_optimizations`, the `rsqrt` optab, or an
+explicit `__builtin_lvx_fsrec*` call.

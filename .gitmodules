@@ -1,15 +1,19 @@
 [submodule "lvx-mds"]
 	path = lvx-mds
 	url = git@github.com:bddinechin/lvx-mds.git
+	branch = main
 [submodule "lvx-binutils"]
 	path = lvx-binutils
 	url = git@github.com:bddinechin/lvx-binutils.git
+	branch = main
 [submodule "lvx-gdb"]
 	path = lvx-gdb
 	url = git@github.com:bddinechin/lvx-gdb.git
+	branch = main
 [submodule "lvx-newlib"]
 	path = lvx-newlib
 	url = git@github.com:bddinechin/lvx-newlib.git
+	branch = main
 [submodule "lvx-gem5"]
 	path = lvx-gem5
 	url = git@github.com:bddinechin/lvx-gem5.git

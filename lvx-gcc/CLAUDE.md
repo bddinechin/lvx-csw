@@ -87,6 +87,14 @@ its 128-bit half. The collapsed forms are `add<suffix> %0 = %1, %2` at 128-bit a
 `%l` (label), `%a` (address), `%c` and `%n` before they reach a target's `print_operand`, so
 a lowercase `l` case is unreachable and ICEs with "'%l' operand isn't a label".
 
+Converted so far: the integer and FP compares (`comp`/`compn`/`fcomp`/`fcompn` — note
+`compn*` yields the 0/-1 mask and `comp*` the 0/1 value, which is why the bare RTL
+comparison, already an all-ones mask in a vector mode, selects `compn*`), the saturating
+shifts and rotates (`sls`/`slus`/`srs`/`rol`/`ror` — and the trailing `s` of the 64-bit
+mnemonics is gone with them, so `slshqs` becomes `slsho`, not `slshq`), the SIMD
+conditional move (`cmove{bx,ho,wq,dp}`, all taking the `lanecond` modifier where scalar
+`cmoved` takes the BCU `cmovecond`), and the averages.
+
 Bitwise ops are the exception that needs no gate: `iorq`, `andq`, `eorq`, `nandq`, `niorq`,
 `neorq`, `andnq`, `iornq`, `copyq`, `notq` are on **lvx_v1**, and with no carry between
 lanes the `q` form is exactly two independent `d` ops. This does **not** extend to
@@ -201,9 +209,18 @@ whether anything actually consumes it.
 
 The oracle is `lvx-gem5/tests/lvx/diff/run_diff.sh`: compile the same C with the host `cc`
 and with `lvx-mbr-gcc`, run the LVX binary under the gem5 ISS, compare exit codes. Baseline
-is **10/10**. It is deliberately scalar and libgcc-free, so it will not exercise SIMD,
-vector types, or division helpers — test those separately, and test signed and unsigned
-variants *apart* or a mismatch will not say which half is wrong.
+is the full matrix, **96/96** — 12 programs × {lvx-1, lvx-2} × {-O0,-O1,-O2,-Os}. It is
+deliberately libgcc-free and has no vector types, so it will not exercise SIMD — test that
+separately, and test signed and unsigned variants *apart* or a mismatch will not say which
+half is wrong. Division and `__int128` *are* covered now (`divmod.c`, `i128.c`).
+
+For SIMD there is no execution oracle yet, so the checks that stand in for one are: the
+mnemonic audit above, assembling the exact emitted forms by hand under `-march=lvx-2`
+(which catches operand shape and arity, not just the mnemonic), and where the vectorizer
+cooperates, reading the emitted asm — `(a[i] + b[i]) >> 1` over `unsigned char` reaches
+`avgubx`, for instance. The vector ternary that would reach `VEC_COND` directly is
+C++-only, and **this build has no C++ front end configured**, which is why the rotate and
+`cmove` patterns are verified by construction rather than by emission.
 
 For build and reconfigure recipes use the `build-lvx-toolchain` skill.
 
@@ -213,10 +230,17 @@ For build and reconfigure recipes use the `build-lvx-toolchain` skill.
   pass (`pass_lvx_shaker`) — the same pass as a known `-O0` ICE, and `t-lvx` already carries
   a `-fno-hwloop` workaround for those two files. Reproduces only with the full build
   command, including `-fvisibility=hidden -DHIDE_EXPORTS`.
-- **73 mnemonics reachable on lvx-1 do not exist**, 43 of them XVR. The rest need per-value
-  work: their iterator mixes values that have a 128-bit form with ones that do not
-  (`rol`/`ror`/`clz` are scalar-only), or they are families with no LVX instruction at any
-  width (`fsdiv`, `fcdiv`, `ffdma`, `fmm`).
+- **77 mnemonics reachable on lvx-1 do not exist**, 52 of them XVR (all of `extension.md`).
+  The remaining 25 are families with no LVX instruction at any width, and are reachable
+  only through `__builtin_lvx_*`: the FP dividers and dot/matrix products (`fsdiv`,
+  `fcdiv`, `ffdma`, `fmm*`), complex FP (`fadddc`, `faddwcp`, `fsbfdc`, `fsbfwcp`,
+  `ffmawcp`, `ffmswcp`), and six mixed-width multiply/FMA shared with `scalar.md`
+  (`fmulhw`, `fmulwd`, `ffmahw`, `ffmawd`, `ffmshw`, `ffmswd`).
+
+  This was 113 before the 128-bit SIMD conversion below. The class that used to need
+  "per-value work" — an iterator mixing values that have a 128-bit form with ones that do
+  not — is gone: `rol`/`ror` now emit `rolwq`/`rorwq`. What is left needs an instruction
+  that does not exist, so it is a decision about the builtins, not a pattern fix.
 - `libgcc/config/lvx/divmodvx{si,hi,qi}.c` are left out of the default build: they are
   written against vector types and SIMD builtins, and reference builtins removed with the
   KVX cleanup. They need updating alongside an lvx-2 multilib.

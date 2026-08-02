@@ -32,9 +32,9 @@ ISA description (.table files)
   → generated source files
 ```
 
-From `lvx-csw/` (this directory), `make config && make all` configures and builds `lvx-mds`; `make config` already wires up `--with-binutils-prefix`/`--with-gdb-prefix`/`--with-gcc-prefix`/`--with-newlib-prefix` to point at this directory's `lvx-binutils`/`lvx-gdb`/`lvx-gcc`/`lvx-newlib` checkouts, so `make -C lvx-mds/build_lvx/BE/GBU install` (or `BE/LIBC`) delivers generated files straight into them.
+From `lvx-csw/` (this directory), `make config && make all` configures and builds `lvx-mds`; `make config` already wires up `--with-binutils-prefix`/`--with-gdb-prefix`/`--with-gcc-prefix`/`--with-newlib-prefix`/`--with-gem5-prefix`/`--with-llvm-prefix` to point at this directory's `lvx-binutils`/`lvx-gdb`/`lvx-gcc`/`lvx-newlib`/`lvx-gem5`/`lvx-llvm/llvm-project` checkouts, so `make -C lvx-mds/build_lvx/BE/GBU install` (or `BE/LIBC`, `BE/GEM5`, `BE/LLVM`) delivers generated files straight into them.
 
-**The `GBU` (binutils) and `LIBC` back-ends are actually installed somewhere so far.** `GBU`'s output goes into both `lvx-binutils` and `lvx-gdb`. **Do not hand-edit these files** — changes will be overwritten by the next `BE/GBU install`:
+**The `GBU` (binutils), `LIBC` (newlib/gdb) and `LLVM` back-ends are the ones actually installed into their target repos so far.** `GBU`'s output goes into both `lvx-binutils` and `lvx-gdb`. **Do not hand-edit these files** — changes will be overwritten by the next `BE/GBU install`:
 
 | File | Notes |
 |------|-------|
@@ -58,6 +58,8 @@ Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive
 
 `lvx-newlib`'s `setjmp.S` and `lvx-gdb`'s `lvx-common-tdep.c` (`lvx_get_longjmp_target`) both `#include` the generated `jmpbuf.h`/`lvx-jmpbuf.h` rather than hardcoding the RA offset — this used to be two hand-encoded copies of the same layout, cross-referenced only by a source comment on each side.
 
+**`BE/LLVM` generates most of the LLVM back end's target description** and is installed: `lvx-llvm/llvm-project/llvm/lib/Target/LVX/`'s `LVXInstrEncodings.td` (every instruction format class and instruction def, with full encodings — including the `.W`/`.M`/`.X`/`.Y` immediate-extension formats), `LVXInstrFormats.td` (every operand type), `LVXModifiers.h` and `LVXImmediateExtensions.inc` are all its output. **Do not hand-edit them.** What stays hand-written there is `LVXInstrInfo.td` — SelectionDAG nodes, pseudos, and every instruction-selection pattern — plus the instruction flags MDS cannot state (`isCall`/`isReturn`/…), which live in `lvx-mds/lvx-family/BE/LLVM/instr-flags`. See `lvx-llvm/CLAUDE.md` and the `BE/LLVM` section of `lvx-mds/CLAUDE.md`.
+
 `BE/GDB` and `BE/GCC` back-ends exist in `lvx-mds` and `make config` already points `--with-gdb-prefix`/`--with-gcc-prefix` at the right places. `BE/GDB` has not been run against its target repo: `lvx-gdb/gdb/lvx-mds-tdep.c` is a hand-written "Tier-1" tdep instead of its output (see `lvx-gdb/CLAUDE.md`).
 
 `BE/GCC` is a mixed case: `lvx-registers.h` and `lvx-registers.md` **are** its output and must not be hand-edited, while `lvx_builtins.h` and `lvx_macros.h` remain hand-written. Note `lvx-family/BE/GCC` does not exist yet — only the family-agnostic `MDS/BE/GCC`. See `lvx-gcc/CLAUDE.md`.
@@ -66,6 +68,9 @@ Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive
 
 `lvx-gcc/` follows the same shape as `lvx-llvm/`: a plain directory in this
 repo holding a submodule that is a genuine GitHub fork of the upstream project.
+`lvx-llvm/llvm-project` holds the LLVM fork, with the LVX back end at
+`llvm/lib/Target/LVX/` and an out-of-tree-style `build/` inside it;
+LLVM-specific guidance lives in `lvx-llvm/CLAUDE.md`.
 The fork of `gcc-mirror/gcc` lives at `lvx-gcc/gcc` on branch `lvx-gcc`, so the
 backend sources are at `lvx-gcc/gcc/gcc/config/lvx/` — one level deeper than
 before, exactly as `lvx-mlir/llvm-project/mlir/...` is. GCC-specific guidance lives in

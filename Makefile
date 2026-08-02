@@ -13,7 +13,8 @@ config:
 	  --with-gdb-prefix=$(ROOT)/lvx-gdb \
 	  --with-gcc-prefix=$(ROOT)/lvx-gcc/gcc \
 	  --with-newlib-prefix=$(ROOT)/lvx-newlib \
-	  --with-gem5-prefix=$(ROOT)/lvx-gem5
+	  --with-gem5-prefix=$(ROOT)/lvx-gem5 \
+	  --with-llvm-prefix=$(ROOT)/lvx-llvm/llvm-project
 
 all check refs:
 	$(MAKE) -C $(BUILD_DIR) $@
@@ -29,6 +30,12 @@ all check refs:
 install:
 	$(MAKE) -C $(BUILD_DIR)/BE/GBU install
 	$(MAKE) -C $(BUILD_DIR)/BE/LIBC install
+	$(MAKE) -C $(BUILD_DIR)/BE/LLVM install LLVM_CORE=$(LLVM_CORE)
+
+# Which LVX variant's description BE/LLVM installs into lvx-llvm: the LLVM
+# target directory holds one at a time, and lvx_v1 is what the back end is
+# being brought up against.
+LLVM_CORE ?= lvx_v1
 
 binutils:
 	$(MAKE) -C $(BINUTILS_BUILD_DIR) all

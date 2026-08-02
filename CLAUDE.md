@@ -14,7 +14,7 @@ LVX has two variants:
 - `lvx-1` (LVX_1) — current.
 - `lvx-2` (LVX_2) — not yet specified; planned extension of `lvx-1` with 512-bit SIMD instructions.
 
-**LVX is LP64 only.** There is no 32-bit mode; the `-m32` option and associated `TARGET_32` guards in the code should be removed.
+**LVX is LP64 only.** There is no 32-bit mode. The `-m32` option and the `TARGET_32` guards are already gone from the LVX-specific sources (remaining hits are upstream GCC ChangeLogs).
 
 ## ABI
 
@@ -58,7 +58,9 @@ Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive
 
 `lvx-newlib`'s `setjmp.S` and `lvx-gdb`'s `lvx-common-tdep.c` (`lvx_get_longjmp_target`) both `#include` the generated `jmpbuf.h`/`lvx-jmpbuf.h` rather than hardcoding the RA offset — this used to be two hand-encoded copies of the same layout, cross-referenced only by a source comment on each side.
 
-`BE/GDB` and `BE/GCC` back-ends exist in `lvx-mds` and `make config` already points `--with-gdb-prefix`/`--with-gcc-prefix` at the right places, but neither has actually been run against its target repo yet. `lvx-gdb/gdb/lvx-mds-tdep.c` is a hand-written "Tier-1" tdep instead of `BE/GDB`'s output (see `lvx-gdb/CLAUDE.md`); the `lvx-gcc/gcc/config/lvx/` files (`lvx_builtins.h`, `lvx_macros.h`, `lvx-registers.h`, `lvx-registers.md`) are likewise still hand-written and untouched by any MDS regeneration so far.
+`BE/GDB` and `BE/GCC` back-ends exist in `lvx-mds` and `make config` already points `--with-gdb-prefix`/`--with-gcc-prefix` at the right places. `BE/GDB` has not been run against its target repo: `lvx-gdb/gdb/lvx-mds-tdep.c` is a hand-written "Tier-1" tdep instead of its output (see `lvx-gdb/CLAUDE.md`).
+
+`BE/GCC` is a mixed case. `lvx-gcc/gcc/config/lvx/lvx-registers.h` and `lvx-registers.md` **are** its output and are byte-identical to `lvx-mds/lvx-refs/BE/GCC/lvx/` — treat them as generated and don't hand-edit them. They had previously drifted (an `EGR_REGS` class added by hand, a stale `rvc` register name, a different `LVX_FRAME_POINTER_VIRT_REGNO`), which is exactly the failure mode to avoid. Note `lvx-family/BE/GCC` does not exist yet — only the family-agnostic `MDS/BE/GCC` — so there is no LVX-specific half of that back-end. `lvx_builtins.h` and `lvx_macros.h` remain hand-written and untouched by any regeneration.
 
 ## Build Directories and Layout
 
@@ -92,16 +94,14 @@ See `lvx-binutils/CLAUDE.md` for binutils-specific implementation gotchas (stale
 LVX instructions have three bundling classes that affect both scheduling and register allocation:
 
 - **TINY**: Can pack into any ALU/LSU slot, unrestricted `registerw`/`registerz`/`registery` operands (`"r"` constraint in GCC patterns).
-- **LITE**: Takes a full ALU slot (max 2 per bundle). **W and Z register operands must have the same parity** — both even (`worddRegE`, class 80) or both odd (`worddRegO`, class 81). GCC must use the `"R"` constraint (EGR_REGS, even GPRs) to satisfy this.
+- **LITE**: Takes a full ALU slot (max 2 per bundle).
 - **FULL**: One per bundle, full ALU slot.
 
-**Watch the SIMD bundling class**: In LVX, 64-bit SIMD operations (`addwp`, `addhq`, `addbo`, etc.) are LITE (parity-constrained), not TINY. GCC patterns that use `"r"` constraints and `alu_tiny` type for these operations are **wrong for LVX** and will produce assembler errors like:
+**There is no register-parity constraint any more.** LITE instructions used to require their W and Z operands to share a parity — both even (`worddRegE`) or both odd (`worddRegO`) — which GCC satisfied with an `EGR_REGS` class and a `"R"` constraint letter hand-added to `lvx-registers.h` and `constraints.md`. The ISA refactoring removed every Format that relied on those classes: `lvx-binutils/include/opcode/lvx.h` now has `singleReg`, `pairedReg` and `quadReg` for the general registers with no parity variant at all (the only surviving `RegE`/`RegO` pair, `xwordqRegE`/`xwordqRegO`, is on the XVR extended-vector file, not the GPRs). `EGR_REGS`, `OGR_REGS` and the `"R"`/`"Q"` constraints are gone; those operands take plain `"r"`.
 
-```
-Error: Instruction `addwp' expected one of [RegClass_lvx_v1_worddRegE]
-```
+The 64-bit SIMD family that motivated the parity rule is gone too: the ISA has no `bo`/`hq`/`wp` integer arithmetic (`addwp`, `addhq`, `addbo`, …), so `lvx-gcc` no longer has 64-bit vector patterns or builtins. The six 64-bit vector *modes* are still declared, because `CHUNK`/`HALF` use them to name the 64-bit piece of a wider vector — LVX registers are 64-bit, so a 128-bit value lives in a register pair and every wide move splits into halves.
 
-The fix requires adding an `EGR_REGS` register class and `"R"` constraint letter to `lvx-registers.h` and `constraints.md`, then updating the patterns.
+**Still outstanding in `lvx-gcc`**: 128-bit SIMD is largely emitted as *pairs* of 64-bit instructions on `%x`/`%y` register halves (`addhq` where the ISA has `addho`, `compnd` where it has `compndp`). Those mnemonics exist on neither core; `make -C lvx-gcc-build/gcc mddump` plus a check against `lvx-opc.c` lists them. This is what stops `libgcc` building (`divmod{si,vxdi,vxsi}`).
 
 To check the bundling class of any instruction:
 ```bash

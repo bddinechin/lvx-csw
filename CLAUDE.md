@@ -60,7 +60,7 @@ Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive
 
 `BE/GDB` and `BE/GCC` back-ends exist in `lvx-mds` and `make config` already points `--with-gdb-prefix`/`--with-gcc-prefix` at the right places. `BE/GDB` has not been run against its target repo: `lvx-gdb/gdb/lvx-mds-tdep.c` is a hand-written "Tier-1" tdep instead of its output (see `lvx-gdb/CLAUDE.md`).
 
-`BE/GCC` is a mixed case. `lvx-gcc/gcc/gcc/config/lvx/lvx-registers.h` and `lvx-registers.md` **are** its output and are byte-identical to `lvx-mds/lvx-refs/BE/GCC/lvx/` — treat them as generated and don't hand-edit them. They had previously drifted (an `EGR_REGS` class added by hand, a stale `rvc` register name, a different `LVX_FRAME_POINTER_VIRT_REGNO`), which is exactly the failure mode to avoid. Note `lvx-family/BE/GCC` does not exist yet — only the family-agnostic `MDS/BE/GCC` — so there is no LVX-specific half of that back-end. `lvx_builtins.h` and `lvx_macros.h` remain hand-written and untouched by any regeneration.
+`BE/GCC` is a mixed case: `lvx-registers.h` and `lvx-registers.md` **are** its output and must not be hand-edited, while `lvx_builtins.h` and `lvx_macros.h` remain hand-written. Note `lvx-family/BE/GCC` does not exist yet — only the family-agnostic `MDS/BE/GCC`. See `lvx-gcc/CLAUDE.md`.
 
 ## Build Directories and Layout
 
@@ -68,7 +68,8 @@ Paths above are relative to each of `lvx-binutils/` and `lvx-gdb/` (both receive
 repo holding a submodule that is a genuine GitHub fork of the upstream project.
 The fork of `gcc-mirror/gcc` lives at `lvx-gcc/gcc` on branch `lvx-gcc`, so the
 backend sources are at `lvx-gcc/gcc/gcc/config/lvx/` — one level deeper than
-before, exactly as `lvx-mlir/llvm-project/mlir/...` is.
+before, exactly as `lvx-mlir/llvm-project/mlir/...` is. GCC-specific guidance lives in
+`lvx-gcc/CLAUDE.md`.
 
 All builds use out-of-tree build directories (except `lvx-gdb`'s, which lives inside that repo rather than as a sibling here, in `lvx_build_gdb_x86/`). The installed toolchain lives in `lvx-toolchain/` with binaries prefixed `lvx-mbr-` (e.g., `lvx-mbr-gcc`, `lvx-mbr-as`, `lvx-mbr-ld`). `lvx-gem5` is a submodule tracked on branch `lvx`.
 
@@ -95,19 +96,23 @@ The LVX ISA is a **VLIW** architecture. Key characteristics:
 
 See `lvx-binutils/CLAUDE.md` for binutils-specific implementation gotchas (stale generated headers, hardcoded relocation literals in `readelf.c`, etc.).
 
-## LVX Bundling and Register Constraints
+## LVX Bundling
 
 LVX instructions have three bundling classes that affect both scheduling and register allocation:
 
-- **TINY**: Can pack into any ALU/LSU slot, unrestricted `registerw`/`registerz`/`registery` operands (`"r"` constraint in GCC patterns).
+- **TINY**: Can pack into any ALU/LSU slot, unrestricted `registerw`/`registerz`/`registery` operands.
 - **LITE**: Takes a full ALU slot (max 2 per bundle).
 - **FULL**: One per bundle, full ALU slot.
 
-**There is no register-parity constraint any more.** LITE instructions used to require their W and Z operands to share a parity — both even (`worddRegE`) or both odd (`worddRegO`) — which GCC satisfied with an `EGR_REGS` class and a `"R"` constraint letter hand-added to `lvx-registers.h` and `constraints.md`. The ISA refactoring removed every Format that relied on those classes: `lvx-binutils/include/opcode/lvx.h` now has `singleReg`, `pairedReg` and `quadReg` for the general registers with no parity variant at all (the only surviving `RegE`/`RegO` pair, `xwordqRegE`/`xwordqRegO`, is on the XVR extended-vector file, not the GPRs). `EGR_REGS`, `OGR_REGS` and the `"R"`/`"Q"` constraints are gone; those operands take plain `"r"`.
+There is no register-parity constraint: the ISA refactoring removed every Format that
+relied on the odd/even general register classes, so `include/opcode/lvx.h` has
+`singleReg`, `pairedReg` and `quadReg` with no parity variant (the only surviving
+`RegE`/`RegO` pair, `xwordqRegE`/`xwordqRegO`, is on the XVR file, not the GPRs). The
+64-bit SIMD family that motivated it is gone too — no `bo`/`hq`/`wp` integer arithmetic.
 
-The 64-bit SIMD family that motivated the parity rule is gone too: the ISA has no `bo`/`hq`/`wp` integer arithmetic (`addwp`, `addhq`, `addbo`, …), so `lvx-gcc` no longer has 64-bit vector patterns or builtins. The six 64-bit vector *modes* are still declared, because `CHUNK`/`HALF` use them to name the 64-bit piece of a wider vector — LVX registers are 64-bit, so a 128-bit value lives in a register pair and every wide move splits into halves.
-
-**Still outstanding in `lvx-gcc`**: 128-bit SIMD is largely emitted as *pairs* of 64-bit instructions on `%x`/`%y` register halves (`addhq` where the ISA has `addho`, `compnd` where it has `compndp`). Those mnemonics exist on neither core; `make -C lvx-gcc-build/gcc mddump` plus a check against `lvx-opc.c` lists them. This is what stops `libgcc` building (`divmod{si,vxdi,vxsi}`).
+For what any of this means for the compiler back end — the constraint letters, the
+`lvx-2` gating of SIMD, and how to audit the machine description against the opcode
+table — see `lvx-gcc/CLAUDE.md`.
 
 To check the bundling class of any instruction:
 ```bash

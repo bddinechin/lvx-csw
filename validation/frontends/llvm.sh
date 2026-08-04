@@ -36,8 +36,17 @@ AS="$LVX/lvx-mbr-as"
 LD="$LVX/lvx-mbr-ld"
 base="$WD/$(basename "$T" .c)"
 
+# -fno-vectorize/-fno-slp-vectorize: the IR is produced by clang for riscv64
+# and then retargeted to LVX by llc, so clang's vectorizers run against the
+# WRONG cost model -- riscv64's, not LVX's. They happily emit <4 x double>
+# operations that the LVX back-end has no lowering for (v4i64 is a legal
+# register class for the ABI, but no vector arithmetic is wired up), and llc
+# then asserts in getSetCCResultType on a vector setcc. Disabling them keeps
+# the IR within what LVX can actually compile. This becomes unnecessary once
+# there is a real clang target for LVX with its own cost model.
 CFLAGS="-O$OPT --target=riscv64-unknown-elf -ffreestanding -fno-strict-aliasing
-        -fwrapv -fno-builtin -D__lvx__=1 -I$LIB"
+        -fwrapv -fno-builtin -fno-vectorize -fno-slp-vectorize
+        -D__lvx__=1 -I$LIB"
 
 # 1. C -> LLVM IR.  Failures here are clang front-end problems, not LVX
 #    back-end ones (nothing LVX-specific has run yet), so they bucket as

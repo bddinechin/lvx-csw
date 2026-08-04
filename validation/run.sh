@@ -53,7 +53,11 @@ for t in $TESTS; do
 
 	# --- x86 reference (the independent oracle) ---
 	ref="$twd/ref"
-	if ! cc -O"$OPT" -fno-strict-aliasing -fwrapv -I"$LIB_DIR" "$t" -o "$ref" 2>"$twd/cc.err"; then
+	# -lm: the x86 reference may resolve math builtins (__builtin_fma and
+	# friends) to libm calls, where the LVX side has a real instruction. The
+	# oracle still holds -- IEEE fma is correctly rounded, so a correct fused
+	# implementation on either side gives the same bits.
+	if ! cc -O"$OPT" -fno-strict-aliasing -fwrapv -I"$LIB_DIR" "$t" -o "$ref" -lm 2>"$twd/cc.err"; then
 		echo "not ok $tap - $name # SKIP x86 reference failed to build"
 		N[SKIP]=$(( ${N[SKIP]:-0} + 1 )); continue
 	fi

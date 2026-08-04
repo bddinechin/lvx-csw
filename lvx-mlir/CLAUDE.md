@@ -15,7 +15,7 @@ unmodified upstream LLVM/MLIR. Design/validation docs are in `llvm-project/docs/
 
 ### Ground truth for the LVX ISA (outside this repo)
 
-`/home/guembu/bd3/lvx-csw/lvx-mds/lvx-refs/` is the **authoritative** machine-description
+`../lvx-mds/lvx-refs/` is the **authoritative** machine-description
 database for the LVX ISA. Treat everything else as derived from it. (The directory is
 `lvx-refs`, **not** `refs` — it was split out of `lvx-mds/lvx-family/` at some point, and
 older docs/Makefiles in this tree may still say `lvx-mds/refs/`.) We target the `lvx_v1`
@@ -35,10 +35,10 @@ Either works for reading ISA facts; prefer the `lvx_v1/` one so the core is unam
 
 Other ground-truth pointers:
 
-- **ISS**: `/home/guembu/bd3/lvx-csw/lvx-gem5/build/gem5-lvx1.opt` is the `lvx_v1` gem5 simulator — the executable used for end-to-end validation of emitted assembly (see `llvm-project/docs/lvx/EndToEndValidation.md`). `gem5-lvx2.opt` beside it is the `lvx_v2` core, a cross-check only; the old single `build/LVX/gem5.opt` path no longer exists.
-- **`lvx-target/bootstrap/` is gone — deleted 2026-07-31, and nothing should be resurrected from it.** It held a pruned LVX-subset view of the ISA (`lvx_Opcode.txt`, `lvx_Format.yml`, `lvx_formats.txt`, `lvx_Modifier.yml`, `lvx_Convention.yml`, `lvx_Synthetic.yml`, and the two `prune_*.pl` scripts that generated the first two) which existed **only** to bootstrap the initial port of `llvm-project` to LVX. It was never a maintained view of the ISA. The dialect sources still cite those filenames in provenance comments (`ConvertToLVX.cpp`, `RegisterAllocation.cpp`, `LVXOps.td`, …) — **those citations are historical**; the thing to consult now is the corresponding `lvx-mds/lvx-refs/` file in the table above. `/home/guembu/bd3/lvx-csw/lvx-target/` itself remains, holding only the two `.tex` specs (`lvx_ApplicationBinaryInterface.tex`, `lvx_VLIWInstructionBundling.tex`).
+- **ISS**: `../lvx-gem5/build/gem5-lvx1.opt` is the `lvx_v1` gem5 simulator — the executable used for end-to-end validation of emitted assembly (see `llvm-project/docs/lvx/EndToEndValidation.md`). `gem5-lvx2.opt` beside it is the `lvx_v2` core, a cross-check only; the old single `build/LVX/gem5.opt` path no longer exists.
+- **`lvx-target/bootstrap/` is gone — deleted 2026-07-31, and nothing should be resurrected from it.** It held a pruned LVX-subset view of the ISA (`lvx_Opcode.txt`, `lvx_Format.yml`, `lvx_formats.txt`, `lvx_Modifier.yml`, `lvx_Convention.yml`, `lvx_Synthetic.yml`, and the two `prune_*.pl` scripts that generated the first two) which existed **only** to bootstrap the initial port of `llvm-project` to LVX. It was never a maintained view of the ISA. The dialect sources still cite those filenames in provenance comments (`ConvertToLVX.cpp`, `RegisterAllocation.cpp`, `LVXOps.td`, …) — **those citations are historical**; the thing to consult now is the corresponding `lvx-mds/lvx-refs/` file in the table above. `../lvx-target/` itself remains, holding only the two `.tex` specs (`lvx_ApplicationBinaryInterface.tex`, `lvx_VLIWInstructionBundling.tex`).
 - If the dialect needs ISA data it doesn't already have (e.g. `Scheduling`/`Resource`/`Bundle` tables for a future software-pipelining pass, or `RegFile`/`RegClass` tables for SIMD register pairs/quads), take it from `lvx-mds/lvx-refs/**/lvx_v1/` directly — never hand-derived from some other source, and don't reintroduce a pruning/extraction layer.
-- `/home/guembu/bd3/lvx-csw/lvx-llvm/llvm-project/llvm/lib/Target/LVX/` is a **separate, independent** SelectionDAG LLVM backend for LVX (own git repo, branch `lvx-llvm`, now a sibling directory under `lvx-csw/`). It's a useful cross-reference for mnemonic spelling and register layout but is **not** the source of truth — it was hand-written in parallel and may drift from the ground truth above.
+- `../lvx-llvm/llvm-project/llvm/lib/Target/LVX/` is a **separate, independent** SelectionDAG LLVM backend for LVX (own git repo, branch `lvx-llvm`, now a sibling directory under `lvx-csw/`). It's a useful cross-reference for mnemonic spelling and register layout but is **not** the source of truth — it was hand-written in parallel and may drift from the ground truth above.
 
 ## Build
 

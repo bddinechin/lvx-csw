@@ -37,7 +37,7 @@ when the pattern is finally selected and the assembler rejects the output, so ba
 accumulate silently — 136 of 304 literal ones had, before the first audit.
 
 ```bash
-make -C /home/bd3/lvx-csw/lvx-gcc-build/gcc mddump
+make -C ../lvx-gcc-build/gcc mddump
 # -> lvx-gcc-build/gcc/tmp-mddump.md
 ```
 

@@ -2,31 +2,39 @@
 	path = lvx-mds
 	url = git@github.com:bddinechin/lvx-mds.git
 	branch = main
+	update = merge
 [submodule "lvx-binutils"]
 	path = lvx-binutils
 	url = git@github.com:bddinechin/lvx-binutils.git
 	branch = main
+	update = merge
 [submodule "lvx-gdb"]
 	path = lvx-gdb
 	url = git@github.com:bddinechin/lvx-gdb.git
 	branch = main
+	update = merge
 [submodule "lvx-newlib"]
 	path = lvx-newlib
 	url = git@github.com:bddinechin/lvx-newlib.git
 	branch = main
+	update = merge
 [submodule "lvx-gem5"]
 	path = lvx-gem5
 	url = git@github.com:bddinechin/lvx-gem5.git
 	branch = lvx-gem5
+	update = merge
 [submodule "lvx-mlir/llvm-project"]
 	path = lvx-mlir/llvm-project
 	url = git@github.com:bddinechin/llvm-project.git
 	branch = lvx-mlir
+	update = merge
 [submodule "lvx-llvm/llvm-project"]
 	path = lvx-llvm/llvm-project
 	url = git@github.com:bddinechin/llvm-project.git
 	branch = lvx-llvm
+	update = merge
 [submodule "lvx-gcc/gcc"]
 	path = lvx-gcc/gcc
 	url = git@github.com:bddinechin/gcc.git
 	branch = lvx-gcc
+	update = merge

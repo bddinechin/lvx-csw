@@ -2,7 +2,7 @@ ROOT := $(CURDIR)
 BUILD_DIR := $(ROOT)/lvx-mds/build_lvx
 BINUTILS_BUILD_DIR := $(ROOT)/lvx-binutils-build
 
-.PHONY: config all check refs install opcode clean binutils regress
+.PHONY: config all check refs install opcode clean binutils regress pdf pdf-clean
 
 # Run the first line of HOWTO (from lvx-mds/), pointing BE/GBU's install
 # prefixes at the sibling toolchain checkouts so a plain "make all" here
@@ -39,6 +39,18 @@ LLVM_CORE ?= lvx_v1
 
 binutils:
 	$(MAKE) -C $(BINUTILS_BUILD_DIR) all
+
+# Readable PDFs of the LVX specifications (lvx-target/*.tex) into
+# lvx-target/build/. Those .tex files are fragments -- each starts at
+# \section{} with no \documentclass, which is what makes them reusable as
+# LaTeX snippets but also means they cannot be compiled directly; see
+# lvx-target/Makefile for the wrapper it generates, and for the TEXINPUTS
+# that resolves the MDS-generated tables they \input from lvx-mds/lvx-refs.
+pdf:
+	$(MAKE) -C $(ROOT)/lvx-target
+
+pdf-clean:
+	$(MAKE) -C $(ROOT)/lvx-target clean
 
 # Full edit-YAML -> verify loop: rebuild lvx-mds, deliver BE/GBU's output
 # into lvx-binutils/lvx-gdb, rebuild lvx-binutils against it, then diff

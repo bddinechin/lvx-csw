@@ -5,6 +5,14 @@ naive one-instruction-at-a-time translation, and two whole families of LVX
 instruction are consequently unreachable from any input. This records why,
 what MLIR offers to fix it, and what the fix would cost.
 
+**What is settled and what is not.** The gap, its cause, the instruction
+semantics, and that upstream `-canonicalize` does not already close it are
+all measured or read from `lvx-refs`. The instruction counts quoted for the
+*proposed* lowering are hand-derived, not produced by a working pass; the
+DRR syntax below is illustrative and has not been compiled; and whether
+combining perturbs hardware-loop formation is untested. Treat the plan as a
+direction with a verified motivation, not as a specification.
+
 ## The gap
 
 `examples/mymma.mlir` is a plain `linalg.generic` matmul over
@@ -178,9 +186,12 @@ must stay a multiply, since 3 is not a power of two.
 
 ## Open questions
 
-- **Does `-canonicalize` already do some of this?** The `lvx` arithmetic ops
-  are `Pure`, so upstream canonicalization may already fold constants. Worth
-  measuring before writing patterns that duplicate it.
+- ~~**Does `-canonicalize` already do some of this?**~~ **Measured: no.**
+  On `mymma` at 8x16x8, against a 54-bundle raw lowering: `-cse` alone gives
+  43, `-canonicalize` alone gives 53, and `-canonicalize -cse` gives 43 --
+  identical to `-cse` by itself. Upstream canonicalization contributes one
+  bundle on its own and nothing on top of CSE, and folds none of the address
+  arithmetic. The `addx` patterns would not be duplicating it.
 - **Where do the patterns come from long-term?** `lvx-mds`' `BE/LLVM`
   backend now generates selection patterns for the sibling LLVM backend from
   each opcode's `Behavior`. If that generator can emit DRR as well as

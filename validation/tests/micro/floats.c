@@ -54,6 +54,21 @@ int test_main(void)
     double q = t / e;                   /* nearest double to 1/3 */
     if (q > 0.333333333333333 && q < 0.333333333333334) score += 2;
 
-    /* 20 (double arith) + 8 (compare) + 8 (convert) + 9 (float) + 2 = 47 */
-    return score;
+    /* --- copysign (FSIGND/FSIGNW) ---
+     * The magnitudes here deliberately have exponent bit 62 SET.  These
+     * instructions once masked with 0x3FFF... instead of 0x7FFF..., clearing
+     * that bit along with the sign, so copysign of anything >= 2.0 returned
+     * +/-0 -- while copysign(1.0, ...) stayed correct and hid the bug.  Test
+     * the magnitudes that can actually expose it.  */
+    volatile double m = 2.0, sneg = -1.0, spos = 1.0;
+    if (__builtin_copysign(m, sneg) == -2.0) score += 2;
+    if (__builtin_copysign(m, spos) ==  2.0) score += 2;
+    volatile double big = 4.6116860184273879e18;   /* 2^62, bit 62 set */
+    if (__builtin_copysign(big, sneg) == -big)  score += 2;
+    volatile float mf = 2.0f, sf = -1.0f;
+    if (__builtin_copysignf(mf, sf) == -2.0f) score += 2;
+
+    /* 20 (double arith) + 8 (compare) + 8 (convert) + 9 (float)
+     * + 2 (rounding) + 8 (copysign) = 55 */
+    return score - 8;                   /* 55 - 8 = 47 */
 }

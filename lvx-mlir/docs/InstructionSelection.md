@@ -52,11 +52,19 @@ new scaling = doscale ? %0.MemorySize : 1;
 new address = base + (index * scaling);
 ```
 
-Note `doscale` is written `0` in this format's ID stage, so **scaling is 1**:
-the index is added unscaled. This matters -- it means the base+index form
-does *not* fold the element-size multiply, so it is worth less than it first
-appears. `addx` is the bigger win of the two, and it subsumes most of what
-base+index would buy:
+**`doscale` is dead, ISA-wide.** It is written `0` in all eleven execution
+blocks that mention it, so `scaling` is unconditionally 1 and the
+`index * scaling` multiply never happens. It is not in `LSU_LSBI`'s
+`operands:` list either, so it has no assembly spelling: today it is an
+encoding bit in eight LSU formats with no operand, no syntax and no effect
+-- a KVX leftover. It is a candidate for removal (it would otherwise cost
+load latency in hardware), and removing it changes no instruction's
+behaviour, because nothing can set it.
+
+Either way the consequence for us is the same: **base+index does not fold
+the element-size multiply**, it only saves the final add. So it is worth
+less than it first appears, and `addx` is the bigger win of the two --
+`addx` subsumes most of what a scaled base+index would have bought:
 
 ```
 ; A[i][k], row stride 64, element size 4:  addr = A + i*64 + k*4

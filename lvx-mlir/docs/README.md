@@ -18,12 +18,14 @@ record of one subsystem's design decisions, written as the work was done.
 | [AssemblyEmission.md](AssemblyEmission.md) | implemented | `-lvx-scf-to-cf`, `-lvx-rewrite-divmod`, `-lvx-emit-asm`: real mnemonic/operand syntax, verified by hand-assembling against `lvx-mbr-as` rather than inferred from tables. |
 | [HardwareLoops.md](HardwareLoops.md) | implemented | `LOOPDO` zero-overhead loops: eligibility, lowering, and why the exit branch must *not* be printed. |
 | [EndToEndValidation.md](EndToEndValidation.md) | done | Taking a real kernel through the whole pipeline to real `lvx-gem5`, and the four bugs that found. |
+| [InstructionSelection.md](InstructionSelection.md) | design, not implemented | Why `addx*` and base+index addressing are never emitted, why the conversion framework structurally cannot peephole, and a proposed `-lvx-combine` pass over MLIR's greedy rewrite driver. |
 | [LinearScanComparison.md](LinearScanComparison.md) | discussion record | Our linear scan measured against the SSA-based literature (Mössenböck, Wimmer, Pereira, Hack). No code resulted; kept so the comparison isn't redone. |
 | [MultiRegisterClasses.md](MultiRegisterClasses.md) | forward-looking | Graph-colouring with overlapping register classes, for the future SIMD pair/quad phase. Not implemented. |
 
-Two of these — `LinearScanComparison.md` and `MultiRegisterClasses.md` —
-describe work that was **not** done. They are reference material, not a
-description of the code. Each says so in its own status line.
+Three of these — `LinearScanComparison.md`, `MultiRegisterClasses.md` and
+`InstructionSelection.md` — describe work that was **not** done: two as
+reference material, one as a proposal. None describes the code as it stands.
+Each says so in its own status line.
 
 ## Generated documentation, not checked in
 

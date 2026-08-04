@@ -15,9 +15,8 @@ func.func @mymma_32(
     outs(%C : memref<256x256xf32>)
     {
     ^bb0(%in: f32, %in_0: f32, %out: f32):
-      %1 = arith.mulf %in, %in_0 : f32
-      %2 = arith.addf %out, %1 : f32
-      linalg.yield %2 : f32
+      %1 = math.fma %in, %in_0, %out : f32
+      linalg.yield %1 : f32
     }
   return
 }

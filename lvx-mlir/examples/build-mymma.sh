@@ -40,10 +40,34 @@ echo "== 1. linalg -> scf/memref/arith  (upstream pass; convert-to-lvx does not 
 echo "== 2. scf/memref/arith/func -> the LVX dialects"
 "$MLIR_OPT" "$OUT/mymma.loops.mlir" -convert-to-lvx -o "$OUT/mymma.lvx.mlir"
 
-echo "== 3. register allocation, divmod fixup, scf->cf, assembly emission"
-"$MLIR_OPT" "$OUT/mymma.lvx.mlir" -o /dev/null \
-  --pass-pipeline='builtin.module(any(lvx-allocate-registers),any(lvx-rewrite-divmod),any(lvx-scf-to-cf),lvx-emit-asm)' \
-  > "$OUT/mymma.s"
+# CSE *after* -convert-to-lvx, not before. Running it on the scf/memref form
+# changes nothing, because the redundancy does not exist yet: -convert-to-lvx
+# creates it, expanding every memref.load/store into its own independent
+# address computation, so a load and a store of the same element compute that
+# address twice. The lvx arithmetic ops are Pure, so upstream CSE handles it.
+# Worth 54 -> 44 bundles on this kernel, entirely in address arithmetic.
+echo "== 2b. CSE (address arithmetic is duplicated per load/store)"
+"$MLIR_OPT" "$OUT/mymma.lvx.mlir" -cse -o "$OUT/mymma.cse.mlir"
+
+# Run the four back-end passes one at a time rather than as a single
+# pipeline, so every stage leaves an inspectable file. The result is
+# identical -- these passes only ever run in this order (see
+# lvx-mlir/docs/Architecture.md, "Pass ordering is load-bearing").
+echo "== 3a. register allocation      (virtual -> physical !lvx.reg<rN>)"
+"$MLIR_OPT" "$OUT/mymma.cse.mlir" -o "$OUT/mymma.alloc.mlir" \
+  --pass-pipeline='builtin.module(any(lvx-allocate-registers))'
+
+echo "== 3b. divmod fixup             (pin the registerM result pair)"
+"$MLIR_OPT" "$OUT/mymma.alloc.mlir" -o "$OUT/mymma.divmod.mlir" \
+  --pass-pipeline='builtin.module(any(lvx-rewrite-divmod))'
+
+echo "== 3c. structured -> branches   (lvx_scf.for -> lvx_cf / LOOPDO)"
+"$MLIR_OPT" "$OUT/mymma.divmod.mlir" -o "$OUT/mymma.cf.mlir" \
+  --pass-pipeline='builtin.module(any(lvx-scf-to-cf))'
+
+echo "== 3d. assembly emission"
+"$MLIR_OPT" "$OUT/mymma.cf.mlir" -o /dev/null \
+  --pass-pipeline='builtin.module(lvx-emit-asm)' > "$OUT/mymma.s"
 
 echo "== 4. assemble the emitted LVX assembly with the real assembler"
 "$LVX/lvx-mbr-as" "$OUT/mymma.s" -o "$OUT/mymma.o"

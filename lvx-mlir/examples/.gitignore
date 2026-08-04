@@ -1,3 +1,6 @@
 libsimple.so
 simple
 simple.o
+
+# build-mymma.sh's scratch output: generated .mlir/.s/.o/.elf, plus gem5's m5out.
+build/

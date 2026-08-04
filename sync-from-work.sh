@@ -121,6 +121,77 @@ for p in $(paths); do
 done
 [ "$ATTACHED" -eq 0 ] && info "nothing to re-attach"
 
+# ------------------------------------- 4b. detect rewritten (rebased) history
+# `update = merge` is the right default, but it is exactly wrong when the
+# other machine REBASED a submodule branch and force-pushed: the local branch
+# and origin then share no tip, and merging splices the pre-rebase commits
+# back in alongside their rewritten twins -- every commit duplicated, or a
+# pile of conflicts. Detect that here, before step 5 can do it.
+#
+# `git cherry` compares by patch-id, which is what makes the two cases
+# distinguishable: after a pure rebase every local commit has an equivalent
+# upstream ('-'), so discarding the local branch loses nothing. A '+' means a
+# commit whose patch is genuinely absent upstream -- real local work.
+say "Checking for rebased/rewritten submodule branches"
+DIVERGED=0
+for p in $(paths); do
+    d="$ROOT/$p"
+    [ -e "$d/.git" ] || continue
+    br=$(git -C "$d" branch --show-current)
+    [ -n "$br" ] || continue                        # detached: handled above
+    git -C "$d" fetch -q origin "$br" 2>/dev/null || continue
+    git -C "$d" rev-parse --verify -q "origin/$br" >/dev/null || continue
+
+    head=$(git -C "$d" rev-parse HEAD)
+    # Fast-forwardable (or already up to date) -- nothing to worry about.
+    git -C "$d" merge-base --is-ancestor "$head" "origin/$br" && continue
+    # Strictly ahead: the normal state between committing and pushing. Not a
+    # divergence -- there is nothing upstream to reconcile with.
+    git -C "$d" merge-base --is-ancestor "origin/$br" "$head" && continue
+
+    # Patches on the local branch that origin lacks, and vice versa. Which of
+    # the two is empty says which side did the rewriting.
+    #
+    # patch-id alone is not quite enough: it hashes context lines too, so a
+    # rebase across upstream churn that merely inserted a line NEXT TO one of
+    # ours yields a different patch-id for an otherwise identical commit --
+    # observed exactly once across the 26-commit lvx-mlir rebase. So a
+    # local-only commit whose subject also appears upstream is treated as
+    # accounted for. Subjects are weak evidence alone, but a commit that is
+    # both unmatched by patch-id AND unmatched by subject is real local work.
+    subjects_upstream=$(git -C "$d" log --format='%s' "origin/$br" 2>/dev/null)
+    unique=0
+    while read -r sha; do
+        [ -n "$sha" ] || continue
+        s=$(git -C "$d" log --format='%s' -1 "$sha")
+        grep -qxF "$s" <<<"$subjects_upstream" || unique=$((unique+1))
+    done < <(git -C "$d" cherry "origin/$br" "$br" 2>/dev/null | awk '$1=="+"{print $2}')
+    missing=$(git -C "$d" cherry "$br" "origin/$br" 2>/dev/null | grep -c '^+' || true)
+    if [ "${unique:-0}" -eq 0 ]; then
+        warn "$p: origin/$br was rewritten (rebased + force-pushed elsewhere)."
+        warn "     Every commit on your local '$br' already exists there as a"
+        warn "     rewritten patch, so nothing would be lost. Run:"
+        warn "         git -C $p reset --hard origin/$br"
+    elif [ "${missing:-0}" -eq 0 ]; then
+        warn "$p: THIS clone rewrote '$br' -- origin/$br is fully contained in"
+        warn "     it as rewritten patches, and origin has nothing you lack."
+        warn "     Nothing to sync here; publish from this machine instead:"
+        warn "         git -C $p push --force-with-lease origin $br"
+    else
+        warn "$p: local '$br' and origin/$br have genuinely diverged --"
+        warn "     $unique commit(s) only here, $missing only on origin:"
+        git -C "$d" cherry -v "origin/$br" "$br" | grep '^+' | sed 's/^/        /'
+        warn "     Rebase or merge it yourself."
+    fi
+    DIVERGED=1
+done
+if [ "$DIVERGED" -ne 0 ]; then
+    warn "Stopping before 'git submodule update': with update=merge it would"
+    warn "merge the diverged histories together. Resolve the above, re-run."
+    exit 1
+fi
+info "no rewritten branches"
+
 # ------------------------------------------------------- 5. update submodules
 say "Updating submodules to the commits the superproject records"
 git submodule update --init --recursive

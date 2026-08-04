@@ -126,7 +126,7 @@ Three ordering constraints are correctness requirements, not preferences:
 - **`-lvx-emit-asm` runs last** and hard-errors on any value that still has an
   unallocated `!lvx.reg`.
 
-## Two invariants worth knowing before editing
+## Three invariants worth knowing before editing
 
 **Do not add same-type traits to arithmetic ops.** Operands and results are
 deliberately *not* constrained to share a type (`SameOperandsAndResultType`,
@@ -135,6 +135,16 @@ deliberately *not* constrained to share a type (`SameOperandsAndResultType`,
 `addd $r5 = $r1, $r2` has three *different* types, and the IR would stop
 verifying. Assembly formats print operand and result types independently for
 exactly this reason.
+
+**Register types always print in full: `!lvx.reg<r5>`, never `<r5>`.** MLIR's
+declarative assembly format offers two pairings and only two: a bare
+`type($x)` directive prints the stripped `<r5>` and accepts either spelling,
+while `qualified(type($x))` prints the full form and accepts only that.
+There is no directive that prints long and parses short -- that would need
+hand-written `custom<...>` parse/print functions at every site. Every LVX
+format uses `qualified(...)`, so the long form is both what is printed and
+what is required on input. If you add an op, qualify its types too, or its
+IR will not match the rest.
 
 **The reserved scratch registers must stay caller-saved.** They are held out
 of the allocation pool for post-allocation passes to pin values to

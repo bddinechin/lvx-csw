@@ -278,7 +278,7 @@ normal operand. In real assembly there's no such instruction -- you just
 write `$r12` directly. Emission special-cases `lvx.sp`'s result: no
 instruction is printed for the op itself, and every *use* of its result
 prints `$r12` directly (looked up from the value's own pinned type, which
-is always `<r12>` by construction).
+is always `!lvx.reg<r12>` by construction).
 
 ### `lvx.mv`/`lvx.li` lower to real opcodes at emission time
 

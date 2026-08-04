@@ -17,19 +17,21 @@
  * a compare-and-select chain until now, so this is the first time the
  * hardware instructions run at all.
  *
- * KNOWN FAILURE under FRONTEND=gcc, and it is a real lvx-gcc bug rather than
- * a defect in this test: lvx-gcc compiles fmin to `fmind`, the -2019
- * NaN-PROPAGATING instruction, where C requires the -2008 one, `fminnd`.
+ * This test was written against a real lvx-gcc bug, FIXED 2026-08-04: the
+ * fmin<mode>3/fmax<mode>3 patterns in gcc/config/lvx/scalar.md are GCC's
+ * standard names for C's fmin/fmax (IEEE-2008 minNum/maxNum) but emitted the
+ * -2019 NaN-PROPAGATING instruction:
  *
  *     double f(double a, double b) { return __builtin_fmin(a, b); }
- *     lvx-mbr-gcc -O2  ->  fmind $r0 = $r0, $r1        <-- wrong
- *     llc -mtriple=lvx ->  fminnd $r0 = $r0, $r1       <-- right
+ *     lvx-mbr-gcc -O2  ->  fmind  $r0 = $r0, $r1       <-- was wrong
+ *                          fminnd $r0 = $r0, $r1       <-- now, and matches llc
  *
- * so it scores 30 instead of 47, losing exactly the three NaN checks. The
- * description names the two helpers apart -- f64_min against f64_minNum -- and
- * the LLVM patterns are generated from those names, which is why this side
- * gets it right. The non-NaN cases agree on both compilers, which is why the
- * pairing could stay wrong this long.
+ * It scored 30 instead of 47, losing exactly the three NaN checks (6+6+5).
+ * Both front ends now pass. The description names the two helpers apart --
+ * f64_min against f64_minNum -- and the LLVM patterns are generated from
+ * those names, which is why that side was right all along. Every non-NaN
+ * case agreed on both compilers, which is how the pairing stayed wrong so
+ * long, and why this file leads with the NaN cases.
  *
  * `volatile` keeps every operand away from the constant folder; without it
  * the whole file folds and nothing executes.

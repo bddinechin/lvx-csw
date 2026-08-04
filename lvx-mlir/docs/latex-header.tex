@@ -1,0 +1,20 @@
+% Included into every generated .tex (pandoc -H).
+%
+% pdflatex is an 8-bit engine: inputenc's utf8 handles the common accented
+% and punctuation characters these documents use (— … × § ö ã) but not the
+% mathematical and arrow glyphs below, where it fails with "Unicode character
+% not set up for use with LaTeX". Declaring them is enough, and keeps the
+% build on the engine that actually works in this environment -- lualatex
+% would handle them natively, but resolves fonts through a luaotfload cache
+% that is not populated here and cannot be rebuilt (luaotfload-tool is not
+% installed), so it cannot even load its default font.
+%
+% Diagrams in these documents deliberately use ASCII (`|`, `v`, `->`) rather
+% than box-drawing characters, so that they render identically in a terminal,
+% on GitHub and here. Keep it that way -- box-drawing glyphs are absent from
+% most LaTeX text fonts, and inside a verbatim block no amount of declaring
+% helps, because the characters are not expanded.
+\DeclareUnicodeCharacter{2192}{\ensuremath{\rightarrow}}   % ->
+\DeclareUnicodeCharacter{2282}{\ensuremath{\subset}}       % subset
+\DeclareUnicodeCharacter{228F}{\ensuremath{\sqsubset}}     % square subset
+\DeclareUnicodeCharacter{03C6}{\ensuremath{\varphi}}       % phi

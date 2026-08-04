@@ -1,0 +1,5 @@
+# `make` output: generated .tex, .pdf and LaTeX intermediates.
+#
+# The .tex files are real deliverables (snippet sources), not throwaways --
+# but they are reproducible from the .md, so they are built, not committed.
+build/

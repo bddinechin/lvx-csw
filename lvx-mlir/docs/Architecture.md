@@ -76,26 +76,26 @@ result registers** (`$r0-$r3`).
 
 ```
   .mlir  (linalg / arith / scf / cf / memref / func)
-    │
-    │  upstream passes, e.g. -convert-linalg-to-loops
-    ↓
+    |
+    |  upstream passes, e.g. -convert-linalg-to-loops
+    v
   arith / scf / cf / memref / func / index
-    │
-    │  -convert-to-lvx                     (applyFullConversion)
-    ↓
+    |
+    |  -convert-to-lvx                     (applyFullConversion)
+    v
   lvx / lvx_cf / lvx_scf / lvx_func        — virtual registers
-    │
-    │  -lvx-allocate-registers             linear scan; assigns !lvx.reg<rN>,
-    │                                      spills, builds the frame, saves
-    │                                      callee-saved registers and $ra
-    ↓
+    |
+    |  -lvx-allocate-registers             linear scan; assigns !lvx.reg<rN>,
+    |                                      spills, builds the frame, saves
+    |                                      callee-saved registers and $ra
+    v
   same dialects                            — physical registers
-    │
-    │  -lvx-rewrite-divmod                 pin divmod's result pair
-    │  -lvx-scf-to-cf                      lvx_scf.for → branches or LOOPDO
-    │  -lvx-emit-asm                       print real assembly text
-    ↓
-  .s → lvx-mbr-as → lvx-mbr-ld → ELF → lvx-gem5
+    |
+    |  -lvx-rewrite-divmod                 pin divmod's result pair
+    |  -lvx-scf-to-cf                      lvx_scf.for -> branches or LOOPDO
+    |  -lvx-emit-asm                       print real assembly text
+    v
+  .s -> lvx-mbr-as -> lvx-mbr-ld -> ELF -> lvx-gem5
 ```
 
 Concretely, for a `linalg.generic` matmul (`../examples/mymma.mlir`):

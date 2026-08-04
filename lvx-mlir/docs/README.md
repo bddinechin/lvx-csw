@@ -31,7 +31,7 @@ The per-operation dialect reference is generated from the `.td` sources:
 
 ```
 ninja -C llvm-project/build mlir-doc
-→ llvm-project/build/tools/mlir/docs/Dialects/LVXOps.md      (79 ops)
+-> llvm-project/build/tools/mlir/docs/Dialects/LVXOps.md      (79 ops)
                                               LVXCFOps.md    (8 ops)
                                               LVXFuncOps.md  (8 ops)
                                               LVXSCFOps.md   (7 ops)

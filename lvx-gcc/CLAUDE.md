@@ -322,7 +322,39 @@ For build and reconfigure recipes use the `build-lvx-toolchain` skill.
 LVX generalises them with `fdiv*` and `fsqrt*`, which is why no `frec*` exists here.
 They are **not** the same as `fsrec*`/`fsrsr*`, which are *seeds* — approximations meant
 to be refined. Mapping one onto the other silently degrades precision, and nothing
-catches it: it builds, the mnemonic exists, the mddump audit passes, the assembler is
-happy, and the differential harness has no floating point. A seed belongs only behind
-`flag_reciprocal_math`, `flag_unsafe_math_optimizations`, the `rsqrt` optab, or an
-explicit `__builtin_lvx_fsrec*` call.
+catches it at build time: it builds, the mnemonic exists, the mddump audit passes and
+the assembler is happy. A seed belongs only behind `flag_reciprocal_math`,
+`flag_unsafe_math_optimizations`, the `rsqrt` optab, or an explicit
+`__builtin_lvx_fsrec*` call.
+
+(This used to add "and the differential harness has no floating point". It has since
+2026-08-04: `lvx-csw/validation/tests/micro/` carries `floats.c`, `fma.c` and
+`minmax.c`, and `tests/ir/minmax-nan.ll` runs on the ISS, all against a native x86
+build. `make check` in that directory is now a real FP oracle, so a precision
+regression of this kind would show up as a value mismatch rather than not at all.)
+
+## Floating-point min/max: `fminn`, not `fmin`
+
+LVX has **both** IEEE min/max families and the mnemonics invite exactly the wrong
+choice:
+
+| instruction | helper | standard | on a NaN |
+|---|---|---|---|
+| `fminn{h,w,d}` / `fmaxn{h,w,d}` | `f*_minNum` / `f*_maxNum` | 754-2008 minNum | returns the **numeric** operand |
+| `fmin{h,w,d}` / `fmax{h,w,d}` | `f*_min` / `f*_max` | 754-2019 minimum | **propagates** the NaN |
+
+GCC's standard pattern names `fmin<mode>3`/`fmax<mode>3` are the optabs behind C's
+`fmin`/`fmax`, which are the **-2008** ones. They must emit `fminn`/`fmaxn`.
+
+`scalar.md` emitted `fmind`/`fmaxd` from them until 2026-08-04, so
+`__builtin_fmin(NaN, x)` returned NaN instead of x. It survived because every
+non-NaN input gives the same answer from both instructions — nothing short of
+feeding one a NaN separates them, and both assemble. The RTL body also used
+`smin:DF`/`smax:DF`, whose NaN and signed-zero behaviour is *unspecified*, which is
+a second way for the same patterns to go wrong even with the mnemonic right. Fixed
+in `a412f7a9c65`; do not "simplify" these back to `fmin`/`fmax`.
+
+The paired check is `lvx-csw/validation/tests/micro/minmax.c` (both front ends,
+against native x86) and `tests/ir/minmax-nan.ll` (which family is which, decided on
+the ISS). The LLVM side derives the pairing from the helper names, so it was right
+by construction — see `lvx-mds/CLAUDE.md`'s `BE/LLVM` section.

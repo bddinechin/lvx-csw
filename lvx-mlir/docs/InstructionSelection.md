@@ -1,17 +1,37 @@
 # Instruction selection: peepholing the naive lowering
 
-Status: design, not implemented. `-convert-to-lvx` today is a faithful but
+Status: **prototyped and measured** (2026-08-04). `-lvx-combine` exists and
+folds the `addx` family; base+index addressing does not. Original status:
+design, not implemented. `-convert-to-lvx` today is a faithful but
 naive one-instruction-at-a-time translation, and two whole families of LVX
 instruction are consequently unreachable from any input. This records why,
 what MLIR offers to fix it, and what the fix would cost.
 
-**What is settled and what is not.** The gap, its cause, the instruction
-semantics, and that upstream `-canonicalize` does not already close it are
-all measured or read from `lvx-refs`. The instruction counts quoted for the
-*proposed* lowering are hand-derived, not produced by a working pass; the
-DRR syntax below is illustrative and has not been compiled; and whether
-combining perturbs hardware-loop formation is untested. Treat the plan as a
-direction with a verified motivation, not as a specification.
+**Measured results** (`mymma` at 8x16x8, cumulative):
+
+| pipeline | bundles | `addx` | `muld` |
+|---|---|---|---|
+| raw lowering | 54 | 0 | 8 |
+| `-cse` | 43 | 0 | 5 |
+| `-lvx-combine` | 37 | 8 | 0 |
+| `-lvx-combine -cse` | **35** | 6 | 0 |
+
+Every multiply is folded, and the predicted inner-loop shape is what comes
+out:
+
+```
+	addx32d $r15 = $r7, $r1      ; C + (i << 5)
+	addx4d  $r16 = $r8, $r15     ;   + (j << 2)
+	lwz     $r15 = 0[$r16]
+```
+
+Verified on real gem5 against the x86 oracle: identical result, so the fold
+is not merely smaller but correct. Hardware-loop formation survives --
+`LOOPDO` still appears, which was the open risk.
+
+Two deviations from what this document originally proposed, both noted where
+they matter: the patterns are hand-written C++ rather than DRR, and the
+`w`-width forms exist but are unexercised by this kernel.
 
 ## The gap
 
@@ -186,6 +206,8 @@ must stay a multiply, since 3 is not a power of two.
 
 ## Open questions
 
+- ~~**Does combining perturb hardware-loop formation?**~~ **No** -- `LOOPDO`
+  still forms on `mymma` after `-lvx-combine`.
 - ~~**Does `-canonicalize` already do some of this?**~~ **Measured: no.**
   On `mymma` at 8x16x8, against a 54-bundle raw lowering: `-cse` alone gives
   43, `-canonicalize` alone gives 53, and `-canonicalize -cse` gives 43 --

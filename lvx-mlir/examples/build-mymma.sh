@@ -40,14 +40,20 @@ echo "== 1. linalg -> scf/memref/arith  (upstream pass; convert-to-lvx does not 
 echo "== 2. scf/memref/arith/func -> the LVX dialects"
 "$MLIR_OPT" "$OUT/mymma.loops.mlir" -convert-to-lvx -o "$OUT/mymma.lvx.mlir"
 
-# CSE *after* -convert-to-lvx, not before. Running it on the scf/memref form
-# changes nothing, because the redundancy does not exist yet: -convert-to-lvx
-# creates it, expanding every memref.load/store into its own independent
-# address computation, so a load and a store of the same element compute that
-# address twice. The lvx arithmetic ops are Pure, so upstream CSE handles it.
-# Worth 54 -> 44 bundles on this kernel, entirely in address arithmetic.
-echo "== 2b. CSE (address arithmetic is duplicated per load/store)"
-"$MLIR_OPT" "$OUT/mymma.lvx.mlir" -cse -o "$OUT/mymma.cse.mlir"
+# Peephole before CSE: folding muld+addd into addx exposes new common
+# subexpressions, so this order is worth more than the reverse. Neither runs
+# before -convert-to-lvx, because the redundancy does not exist at the
+# scf/memref level -- -convert-to-lvx creates it, expanding every
+# memref.load/store into its own address computation.
+#
+# On this kernel, cumulatively: 54 bundles raw, 43 with CSE alone, 37 with
+# combine alone, 35 with both.
+echo "== 2b. peephole combine (muld+addd -> addx<N>)"
+"$MLIR_OPT" "$OUT/mymma.lvx.mlir" --pass-pipeline='builtin.module(any(lvx-combine))' \
+  -o "$OUT/mymma.combine.mlir"
+
+echo "== 2c. CSE (address arithmetic is duplicated per load/store)"
+"$MLIR_OPT" "$OUT/mymma.combine.mlir" -cse -o "$OUT/mymma.cse.mlir"
 
 # Run the four back-end passes one at a time rather than as a single
 # pipeline, so every stage leaves an inspectable file. The result is

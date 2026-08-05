@@ -119,7 +119,7 @@ currentBlock:
   ...original ops, unchanged...
   %next_iv = lvx.addd %iv, %step : (...) -> <iv's own register>   // in-place: same
                                                                     // register as %iv
-  lvx_cf.br ^exit(%yieldedValues...)        // never printed -- see emission below
+  lvx_cf.loopend ^exit(%yieldedValues...)   // emits a comment only -- see emission
 
 ^exit(%result...):
   ...rest of function, using %result as forOp's own result, unchanged...
@@ -165,15 +165,32 @@ Two additions:
    guarantees by construction (no separate elision logic needed for this
    edge specifically, since nothing ever *would* print a `goto` for a
    plain fallthrough on the entry side).
-2. A general "elide a branch whose target is the block immediately
-   following it in emission order" rule, applied to `lvx_cf.br`/`cond_br`.
-   This is **required for correctness** on the loop body's own
-   `lvx_cf.br ^exit(...)` terminator specifically — printing that as an
-   explicit `goto` would be a real branch instruction, which per
-   `LOOPDO`'s own semantics overrides the hardware back-edge and silently
-   turns the loop into a single iteration regardless of trip count. It's
-   a minor, harmless cleanup everywhere else it happens to apply (ordinary
-   branch-to-fallthrough is always safe to elide for non-loop code too).
+2. An `lvx_cf::LoopendOp` case: print a comment and no instruction.
+
+   A general "elide a branch whose target is the block immediately
+   following it in emission order" rule also exists, applied to
+   `lvx_cf.br`/`cond_br`, but it is now **only** an optimization.
+
+   **This used to be different, and the change is the point.** The loop
+   body originally ended in a plain `lvx_cf.br ^exit(...)`, and correctness
+   depended on that elision firing: printing the branch would emit a real
+   `goto`, which per `LOOPDO`'s semantics overrides the hardware back-edge
+   and silently turns the loop into a single iteration regardless of trip
+   count. That put correctness in a *peephole* — reorder blocks, or make
+   the elision smarter, and every hardware loop breaks with no IR-level
+   test failing, detectable only by executing the code and getting a wrong
+   number.
+
+   `lvx_cf.loopend` (2026-08-05) moves the decision into the IR. It is
+   structurally an `lvx_cf.br` — same successor, same forwarded operands,
+   same `BranchOpInterface`, so liveness and the allocator's branch
+   coalescing are unaffected — but `-lvx-emit-asm` prints only
+
+   ```
+   	# end of hardware loop body -- LOOPDO back-edge is implicit
+   ```
+
+   for it. The intent is stated rather than inferred from block order.
 
 ## Known limitations (recap)
 

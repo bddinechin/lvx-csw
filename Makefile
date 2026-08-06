@@ -2,7 +2,7 @@ ROOT := $(CURDIR)
 BUILD_DIR := $(ROOT)/lvx-mds/build_lvx
 BINUTILS_BUILD_DIR := $(ROOT)/lvx-binutils-build
 
-.PHONY: config all check refs install opcode clean binutils regress docs specs pdf docs-clean specs-clean pdf-clean
+.PHONY: config all check refs install install-all rebuild-all isa-update opcode clean binutils regress docs specs pdf docs-clean specs-clean pdf-clean
 
 # Run the first line of HOWTO (from lvx-mds/), pointing BE/GBU's install
 # prefixes at the sibling toolchain checkouts so a plain "make all" here
@@ -36,6 +36,49 @@ install:
 # target directory holds one at a time, and lvx_v1 is what the back end is
 # being brought up against.
 LLVM_CORE ?= lvx_v1
+
+# Deliver every back-end's generated files to its consumer, then rebuild each
+# consumer. `install` above is the narrow, always-safe subset; this is the
+# whole chain, which is what an *ISA change* needs.
+#
+# Why this exists: changing the machine description touches four consumers,
+# and getting only some of them is silent. On 2026-08-05 the assembler was
+# regenerated but the ISS was not, so `notw.sx` assembled correctly and then
+# executed as a zero-extend -- a wrong number, with nothing to indicate the
+# simulator was stale (lvx-gem5's generated/ is gitignored, so git never
+# flags the drift). An hour went into hunting a compiler bug that was not
+# there.
+#
+# BE/GDB and BE/GCC stay out, for the reason `install` documents: their
+# output has never been checked against the hand-maintained files it would
+# overwrite, and running BE/GDB once already reintroduced a stale KVX
+# feature-name string. lvx-gdb still gets files here -- but from BE/GBU and
+# BE/LIBC, which are verified.
+#
+# lvx-mlir is absent because no back-end targets it: its dialect is
+# hand-written, not generated. It consumes the ISA as *ground truth to read*
+# (lvx-mds/lvx-refs), not as installed files, so it needs no install step --
+# only a rebuild, which `rebuild-all` covers.
+install-all:
+	$(MAKE) -C $(BUILD_DIR)/BE/GBU install
+	$(MAKE) -C $(BUILD_DIR)/BE/LIBC install
+	$(MAKE) -C $(BUILD_DIR)/BE/GEM5 install
+	$(MAKE) -C $(BUILD_DIR)/BE/LLVM install LLVM_CORE=$(LLVM_CORE)
+
+# Rebuild every consumer, in dependency order: binutils first, because the
+# assembler is what everything downstream feeds. gem5 goes through
+# build-cores.sh rather than scons directly -- it installs one core's
+# description at a time into a shared generated/ dir, so the two ISS binaries
+# must be built sequentially, and scons must run from the gem5 root.
+rebuild-all: binutils
+	$(MAKE) -C $(BINUTILS_BUILD_DIR) install
+	cd $(ROOT)/lvx-gem5 && ./build-cores.sh
+	ninja -C $(ROOT)/lvx-llvm/llvm-project/build llc
+	ninja -C $(ROOT)/lvx-mlir/llvm-project/build mlir-opt
+
+# The whole chain for an ISA change: regenerate, refresh the reference tree,
+# deliver to every consumer, rebuild every consumer.
+isa-update: all refs install-all rebuild-all
 
 binutils:
 	$(MAKE) -C $(BINUTILS_BUILD_DIR) all

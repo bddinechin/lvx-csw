@@ -19,11 +19,20 @@ extern long wext(int a, int b);
 #else
 /* Native oracle: the same arithmetic, written plainly. The casts are the
  * point -- (long)(int) sign-extends, (long)(unsigned) zero-extends. */
+static int ref_clz32(unsigned v)
+{
+    int n = 0;
+    for (int i = 31; i >= 0 && !((v >> i) & 1u); i--) n++;
+    return n;
+}
+
 static long wext(int a, int b)
 {
     int sum  = (int)((unsigned)a + (unsigned)b);   /* wrapping, like arith.addi */
     int prod = (int)((unsigned)a * (unsigned)b);
-    return (long)sum + (long)(unsigned)prod;
+    int notv = ~a;
+    int clzv = ref_clz32((unsigned)b);
+    return (long)sum + (long)(unsigned)prod + (long)notv + (long)clzv;
 }
 #endif
 
@@ -32,7 +41,9 @@ int test_main(void)
     volatile int a = 0x7FFFFFFF;
     volatile int b = 1;
     long r = wext(a, b);
-    /* -2147483648 + 2147483647 == -1. If the sxwd fold had produced a
-     * zero-extension instead, this would be 4294967295. */
-    return (int)(r == -1 ? 42 : 0);
+    /* -2147483648 + 2147483647 + -2147483648 + 31 == -2147483618. Each of
+     * the two sign-extended terms would be off by 2^32 if its fold had
+     * produced a zero-extension instead, so a wrong modifier fails here
+     * rather than passing quietly. */
+    return (int)(r == -2147483618L ? 42 : 0);
 }

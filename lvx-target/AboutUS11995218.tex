@@ -1,0 +1,75 @@
+\subsection{Processor with Configurable Distribution of Privileged Resources and Exceptions Between Protection Rings} \label{sec:US11995218}
+
+[US11995218] Pierre Guironnet de Massas, Vincent Ray, Benoît Dupont de Dinechin. %120068
+
+\subsubsection{Field and Background}
+
+The disclosure relates to protection rings or privilege levels of a processor, allowing different layers of software to interact securely.
+
+Processors are generally designed to offer several execution privilege levels, also known as protection rings. The two terms are used interchangeably below.
+In the state of the art, execution resources and hardware configuration registers are assigned to protection rings based on presumed privileges. An application code runs in the least privileged ring and cannot access functions such as configuring a memory management unit (MMU), input/output interfaces, clocks, etc. Supervisor code, such as an operating system, runs in a higher privilege ring but cannot access functions common to multiple virtualized operating systems, such as configuring an interrupt controller. Hypervisor code, such as a virtual machine monitor, runs in an even higher privilege ring, but cannot access hardware boot or low-level debugger configuration settings.
+
+Exception handling is based on a processor status register PS, which contains several control bit fields, including the current execution ring, and exceptions to be masked. When an exception is triggered, the processor, in one hardware and atomic operation, saves the contents of the program counter PC and the register PS in locations called SPC (``Saved Program Counter'') and SPS (``Saved Processor State''), and masks subsequent interrupts by setting the corresponding fields in the PS register. The exception handler takes over and often starts by saving additional information from the execution context, which operation should not be interrupted, lest the context be lost.
+
+The handler ends with the execution of the RFE instruction. In response to the RFE instruction, the processor restores the original values of the PC and PS registers in a hardware and atomic manner from the backups at the SPC and SPS locations, after which the application program resumes from the point it had reached when the exception was triggered.
+
+Each exception is usually assigned by construction to a specific ring of lower rank (higher privilege) than the one where the exception may occur, often the ring of immediately lower rank for the sake of simplicity. The result is a rigid architecture that leads to trade-offs and reduced performance under certain circumstances.
+
+\subsubsection{Invention Summary}
+
+A processor is generally provided, having multiple protection rings and comprising a protection ring management system in which attributions of exceptions or privileged resources to protection rings are defined by a programmable table.
+
+The table may be programmable by software upon booting the processor.
+
+The ring management system may be configured to respond to an exception by diverting handling of the exception to the ring programmed for the exception.
+
+The protection ring management system may be configured to trigger a privilege trap when accessing a privileged resource from a less privileged protection ring than the ring programmed for the privileged resource; and respond to the privilege trap by diverting the handling of the exception to the ring programmed for the privileged resource.
+
+The processor may include a system-register-write instruction implemented by the processor to write into the ownership register, identified by the instruction, a sum of the rank of the current ring and a parameter of the instruction conveying a relative rank.
+
+The exceptions may include a horizontal interrupt, the ownership register being programmed to attribute the horizontal interrupt to the same protection ring as the program running at the time the interrupt is triggered.
+
+\subsubsection{Motivation and Implementation}
+
+This invention is motivated by the practice of embedded computing in reducing the number of execution privilege levels to two (monitor and user) once the application software and its operating environment are deployed to the target platform. By contrast, developing and validating software requires execution across multiple privilege levels: debugger, monitor, hypervisor, supervisor, user.
+
+The purpose of the invention is to enable software written for a given execution privilege level to execute at any other privilege level without changes and without compromising performance. As an additional benefit, exception processing (system call, interrupt, hardware trap, and debugging) is made more efficient by routing execution directly between the origin and destination privilege levels.
+
+Prior art is to dedicate execution resources and control register accesses to an assumed execution privilege level: application code runs at the least capable privilege level and cannot configure resources such as the memory management unit (MMU), of timers, or performance counters; supervisor code such as operating systems cannot control resources shared by several OS such as the configuration of interrupt controllers; hypervisor code such as virtual machine monitors cannot control boot-time hardware configuration parameters.
+
+Moving between the privilege levels is achieved when the processor normal execution is diverted to exception processing code, and when it returns from exception processing (system call, interrupt, hardware trap, debug) by executing an instruction traditionally called RFE (Return From Exception). Exception processing relies on a PS (Program Status) register, which contains several control bit-fields including: the current execution privilege level; and the kind of exceptions that can currently be taken.
+
+When taking an exception, the processor atomically saves the values of the current PC (Program Counter) and PS registers in locations called SPC (Saved Program Counter) and SPS (Saved Program Status) and disables taking further exceptions. Indeed, the exception handling code must possibly save further execution context before re-enabling exceptions. When RFE is executed, the processor atomically replaces the content of the PC (Program Counter) and PS registers with values from SPC and SPS. These values may be different from the one saved when the exception was taken.
+
+An instance of the invention is implemented by introducing new control registers in the processor, in particular SYO (System Call Owners), ITO (Interrupt Owners), HTO (Hardware Trap Owners), DO (Debug Owners), MO (Miscellaneous Owners) and PSO (PS bit-field Owners). This instance of the invention also assumes that there are four different privilege levels (PL) numbered from 0 to 3, with PL0 being the highest privileged and PL3 the least privileged.
+
+The SYO, ITO, HTO, DO, MO, PSO registers each contain bit-fields of 2 bits, one such field per resource, whose value encodes the privilege level that owns the resource. In addition, the locations SPC and SPS are, respectively, mapped to multiple control registers SPS${}_\text{PL0}$ ... SPL${}_\text{PL3}$ and SPC${}_\text{PL0}$ ... SPC${}_\text{PL3}$, that is, one per privilege level. Then, upon taking an exception whose privilege level is $j$, as defined by the contents of SYO, ITO, HTO, DO, MO, PSO, the following actions are atomically performed by the processor:
+\begin{itemize}
+    \item PS receives the content of SPS${}_\text{PLj}$, except for its current PL bits that are forced by hardware and for its other control bits that disable further taking of exceptions.
+    \item SPS${}_\text{PLj}$ receives the content of PS (simultaneously with the previous step, this is a swap).
+    \item PC receives the trap handler PC, which is kept in control register EV${}_\text{PLj}$.
+    \item SPC${}_\text{PLj}$ receives the content of PC (simultaneously with the previous step, this is a swap).
+    \item Other control registers that record the exception address and syndrome are also updated.
+\end{itemize}
+In contrast, upon execution of RFE from the current privilege level $i$, the processor performs the following actions atomically:
+\begin{itemize}
+    \item PS receives the content of SPS${}_\text{PLi}$.
+    \item SPS${}_\text{PLi}$ receives the content of PS.
+    \item PC receives the content of SPC${}_\text{PLi}$.
+\end{itemize}
+
+This invention enables improved performance compared to state-of-the-art implementations. For instance, assume that some processing has to be performed by the application code following an event signaled to the system through an interrupt. In traditional systems, the interrupt handler automatically executes in supervisor or hypervisor mode, which determines this particular processing should be performed at application level, so it has to execute RFE towards the application handler, which itself will proceed and then execute RFE to resume the initial application processing. With the invention, this particular IT can be owned by the privilege level application through the configuration of ITO, so only one level of exception handling and a single RFE execution is required.
+
+Another illustration of the benefits of the invention is the emulation of a multi-level memory address translation scheme on a processor where only a single level of address translation is supported by hardware. Address translation is traditionally performed by a MMU (Memory Management Unit), which maps blocks of virtual addresses called pages to same size blocks of physical addresses called frames. The translation table is maintained in memory and is called page table. The frequently used Page Table Entries (PTE) are cached in the processor in a structure called the TLB (Translation Lookaside Buffer). When an address misses translation in the TLB, a MMU trap is raised and the trap handler traverses the page table to install the missing PTE in TLB, possibly evicting another PTE from the TLB. This update of the TLB can be performed by software, or by hardware.
+
+On a system with guest virtual machines, application virtual addresses are first translated into physical addresses by guest OSes. The virtual machine monitor then translates the physical addresses into machines addresses. In recent processors, this is supported by Second Level Address Translation (SLAT), a hardware extension of the memory paging mechanism that allows mapping of guest virtual addresses into the machine addresses. The alternative to SLAT is known as Shadow Page Tables (SPT), where the guest OS maintains its virtual to physical address page table, and the virtual machine monitor maintains a parallel (shadow) virtual to machine address page table, which is actually used by the hardware to populate the TLB. Any modification to the virtual to physical address page table by the guest OS is trapped to the virtual machine monitor, which then applies the modification to the shadow page table. This trapping relies on the MMU configured to prevent write access to the virtual to physical address page, and on the MMU trap handler designed to steer between supervisor and hypervisor processing.
+
+With the invention, on a processor without SLAT, the two steps of address translation can be collapsed into one by configuring the processor (contents of SYO, ITO, HTO, DO, MO, PSO) as follows:
+\begin{itemize}
+    \item The MMU hardware traps are owned by the supervisor privilege level (for instance, PL2)
+    \item The resources that configure address translation are owned by the hypervisor privilege level (for instance, PL1); for the sake of illustration, we assume these resources are software-managed TLB entries, but the same principle would apply to processor with hardware page table walk (for instance, by making PL1 owner of the page table fence instructions).
+\end{itemize}
+
+Then, when an MMU hardware trap occurs, such as NOMAPPING raised when the application accesses a virtual address that is not yet mapped to a physical address in the TLB, the trap handler executes at the PL2 (supervisor) to install the missing TLB entry. Access to the TLB entry from this handler is then trapped in a PL1 (hypervisor) handler, which applies the physical to machine address mapping to the TLB entry before executing RFE to PL2.
+
+On processors without SLAT, the MMU directly translates the virtual addresses of the application into machine addresses. Thanks to the invention, the same application and operating system code can run unchanged on the same system, this time without a virtual machine monitor. In that case, all MMU resources are configured to be owned by PL2 (supervisor), so accesses to the TLB entries by the MMU trap handler do not trap.

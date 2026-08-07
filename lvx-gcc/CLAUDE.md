@@ -51,6 +51,39 @@ Names built from an attribute (`<stem>bx`) cannot be checked directly — expand
 over the pattern's own iterator and require the result for *every* value, since one
 define_insn covers them all.
 
+**Audit the built compiler, not the `.md` text, when the question is what it can actually
+emit.** `insn-output.cc` holds only the patterns whose condition survived `gencondmd`, with
+iterators already expanded, so it answers "can this mnemonic reach the assembler" where the
+sources answer "is this mnemonic written down":
+
+```bash
+grep -ohE '"[a-z][a-z0-9_.]*[a-z0-9](%[0-9]| %|\\n)' ../lvx-gcc-build/gcc/insn-output.cc |
+  sed 's/^"//;s/\(%[0-9]\| %\|\\n\)$//' | sort -u        # add the \t-prefixed forms too
+```
+
+The two audits disagree in both directions and you want both. The text audit misses a
+mnemonic returned from a C-block template (`return "xeoro %0 = %0, %0";` — no `"mnemonic %`
+at the start of a template line), which is how a whole second batch of 31 dead opcodes
+survived the first sweep. The built-compiler audit reports mnemonics that are gated off and
+therefore harmless. Diffing the emittable set **before against after** a change is the check
+that a gate flip removed exactly what was intended and cost nothing live.
+
+### A removed opcode is gated, not deleted
+
+`lvx-opts.h` is the record of what the ISA has: ~780 `HAVE_LVX_*` macros, and roughly a
+quarter are `(0)`. Patterns are written to fall back when their gate is off — `lvx_xzero256`
+tests `HAVE_LVX_EXT_EOR_<MODE>` inside its template and returns `"#"` so a `define_split`
+takes over. So when an instruction leaves the ISA, set its gate to `(0)` and name the
+mnemonic in the comment; do not delete the pattern. Deleting loses the record and drags in
+the builtin, its ftype and its unspec for nothing.
+
+Two traps. A pattern may have **no** gate — the complex-subtract pair `lvx_fsbfwcp`/
+`lvx_fsbfdc` had none while their `fadd` counterparts were gated, which is exactly why they
+outlived the ISA; give it the gate its counterpart has rather than inventing a name. And one
+mnemonic can come from **several** patterns at different widths (`xmma484bw` from both
+`lvx_xmma484bw_1` and `_2`, on different gates), so flipping the first gate you find leaves
+it emittable — the before/after diff is what catches that.
+
 ## Architecture gating
 
 SIMD is **lvx-2 only**. Every packed arithmetic instruction — `addho`, `addwq`, `adddp`,

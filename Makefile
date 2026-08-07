@@ -37,6 +37,20 @@ install:
 # being brought up against.
 LLVM_CORE ?= lvx_v1
 
+# Same for BE/GEM5 and lvx-gem5's generated/ dir -- but the default is the
+# OTHER way, and has to be passed explicitly because BE/GEM5's own default is
+# not this one.
+#
+# BE/GEM5 defaults to lvx_v1, so an `install` that does not say otherwise
+# silently downgrades the ISS to the non-SIMD core: lvx_v2 instructions then
+# fail to decode rather than reporting a stale simulator. lvx_v2 is the
+# superset -- its decoder runs the lvx-1 scalar subset correctly -- so
+# installing it is the safe direction when only one core can be present.
+#
+# `rebuild-all` papers over this because build-cores.sh installs each core in
+# turn; `install-all` on its own does not, which is exactly when it bites.
+GEM5_CORE ?= lvx_v2
+
 # Deliver every back-end's generated files to its consumer, then rebuild each
 # consumer. `install` above is the narrow, always-safe subset; this is the
 # whole chain, which is what an *ISA change* needs.
@@ -62,7 +76,7 @@ LLVM_CORE ?= lvx_v1
 install-all:
 	$(MAKE) -C $(BUILD_DIR)/BE/GBU install
 	$(MAKE) -C $(BUILD_DIR)/BE/LIBC install
-	$(MAKE) -C $(BUILD_DIR)/BE/GEM5 install
+	$(MAKE) -C $(BUILD_DIR)/BE/GEM5 install GEM5_CORE=$(GEM5_CORE)
 	$(MAKE) -C $(BUILD_DIR)/BE/LLVM install LLVM_CORE=$(LLVM_CORE)
 
 # Rebuild every consumer, in dependency order: binutils first, because the
